@@ -1,0 +1,11 @@
+{
+  "gateway": {
+    "port": 18789,
+    "mode": "local"
+  },
+  "agents": {
+    "defaults": {
+      "model": "anthropic/claude-sonnet-5"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+# Home-level plugin-tree patch, applied over the profile's own layer.
+#
+# `dsh web` refuses `--host 0.0.0.0` in its flag parser, but the webserver
+# plugin's schema accepts it, so the bind Docker port publishing needs is set
+# here instead. A patch replaces the targeted row's whole `config`, so `--host`
+# and `--port` no longer have any effect once this row is patched.
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: 3080
+
+# Permission mode is set here rather than through DSH_PERMISSION_MODE in
+# entrypoint.d/setup.sh: that script demonstrably runs, but its exports do not
+# reach the tool process, while ENCLAVE_YOLO (a container-level variable) does.
+# Reading ENCLAVE_YOLO directly is therefore the reliable channel.
+#
+# These rows restate the base bundle's own expressions with the env seam
+# swapped; a patch replaces the whole `config`, so every key must be present.
+# `mode` is pinned rather than mapped from ENCLAVE_YOLO: dsh confines commands
+# with bwrap or Landlock, and bwrap cannot create a user namespace in this
+# container ("No permissions to create new namespace"). Any confining mode
+# therefore fails closed on every command. The container and the gateway
+# allowlist are the boundary here, so danger-full-access states the truth
+# instead of promising confinement that does not exist.
+- id: sandbox-policy
+  config:
+    mode: danger-full-access
+    workspaceRoot: !!js process.cwd()
+
+# Approvals still follow yolo, so --no-yolo keeps its meaning: the agent asks
+# before acting. It loses file confinement, which was never available, not
+# oversight.
+#
+# The expression must be quoted: a plain YAML scalar containing ": " parses as
+# a nested mapping, which crashes the loader at boot. The base bundle quotes
+# the same shape for the same reason.
+- id: approval
+  config:
+    policy: !!js "process.env.ENCLAVE_YOLO === '1' ? 'never' : 'ask'"
+
+# dsh's preset table couples the two knobs, and ships no entry pairing
+# danger-full-access with `ask`. Without one, a --no-yolo session composes a
+# combination that matches no preset and the plugin refuses to boot:
+# "composed sandbox and approval defaults match no preset". `unconfined-ask`
+# supplies that pair, and defaultPreset names the one matching the composed
+# defaults above.
+#
+# The two confining presets are retained so nothing that resolves them by name
+# breaks, but selecting either in the UI will fail on every command: this
+# container has no usable sandbox backend.
+- id: permission
+  config:
+    defaultPreset: !!js "process.env.ENCLAVE_YOLO === '1' ? 'danger-full-access' : 'unconfined-ask'"
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+        name: read-only
+        description: Read-only. Needs a sandbox backend, which this container lacks.
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+        name: workspace-write
+        description: Write inside the workspace. Needs a sandbox backend, which this container lacks.
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+        name: danger-full-access
+        description: Full file access without approval prompts.
+      unconfined-ask:
+        sandbox: danger-full-access
+        approval: ask
+        name: unconfined-ask
+        description: No file confinement, but the agent asks before acting.
