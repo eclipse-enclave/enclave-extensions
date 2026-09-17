@@ -23,12 +23,16 @@ enclave tools add eclipse-enclave/enclave-extensions --name <extension-name>
 enclave --tool <extension-name>
 ```
 
+Features install the same way with `enclave features add`, and are enabled per
+session with `enclave --features +<extension-name>`.
+
 Before writing anything, `add` prints what the extension can do: root install
 steps, install and startup scripts, network changes, declared credentials,
-files seeded into your project. Read that summary. An extension is code that
-runs at container build and start time. Proceed at your own risk, extensions
-here are not signed or are not reviewed or tested in depth by Eclipse Enclave
-core team.
+files seeded into your project, host commands. Read that summary. An extension
+is code that runs at container build and start time, and a host command runs
+outside the sandbox with your own privileges. Proceed at your own risk,
+extensions here are not signed or are not reviewed or tested in depth by
+Eclipse Enclave core team.
 
 Afterwards:
 
@@ -57,6 +61,10 @@ for more information.
 |------|--------|------------|
 | [openclaw](tools/openclaw) | Experimental | [OpenClaw](https://openclaw.ai/) personal assistant: gateway, terminal UI, and browser dashboard |
 | [dsh](tools/dsh) | Experimental | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) with its browser UI |
+
+| Feature | Status | What it is |
+|---------|--------|------------|
+| [vnc](features/vnc) | Experimental | Contained GUI: a virtual X display with a fullscreened Chromium, served over VNC, plus an `enclave vnc-viewer` host command |
 
 Experimental means what it says: each one pins a fast-moving upstream, gets
 thinner testing than a built-in tool, and has rough edges written down in its
