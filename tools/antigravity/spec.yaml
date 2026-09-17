@@ -1,0 +1,68 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+schemaVersion: "1"
+kind: sandbox
+name: antigravity
+displayName: Antigravity CLI
+description: "Experimental: Google's Antigravity CLI (agy) coding agent"
+defaultIncluded: false
+
+sandbox:
+  entrypoint: { run: [agy] }
+  # agy keeps two trees under ~/.gemini: antigravity-cli/ for the CLI itself
+  # (settings, conversations, caches) and config/ for what it shares with the
+  # Antigravity IDE (skills, MCP servers, workflows). One store covers both.
+  configDir: .gemini
+  skillsDir: .gemini/config/skills
+  settingsFile: antigravity-settings.json
+  settingsTarget: .gemini/antigravity-cli/settings.json
+  yoloFlag: --dangerously-skip-permissions
+  yoloEnabled: true
+  continueArgs: [--continue]
+  # Conversations live in SQLite databases opened in WAL mode
+  # (conversations/, conversation_summaries.db).
+  qemuStoreCacheMmap: true
+  passthroughPaths:
+    - antigravity-cli/keybindings.json
+    - antigravity-cli/settings.json
+    - config/global_workflows/
+    - config/mcp_config.json
+    - config/skills/
+    - config/workflows/
+
+environment:
+  variables:
+    # agy spawns a background self-updater on every start, which would swap the
+    # binary the image was built with. The updater host is not in the allowlist
+    # either, so this only saves a failed download per session.
+    AGY_CLI_DISABLE_AUTO_UPDATE: "true"
+
+network:
+  deniedDomains:
+    # Clearcut (https://play.googleapis.com/log), the endpoint agy's analytics
+    # worker posts to. Denied explicitly because the allowlist has to resolve
+    # googleapis.com for the agent backend, and deny out-ranks allow.
+    - play.googleapis.com
+    # Background self-update downloads. Already unreachable under the deny-all
+    # allowlist; denied by policy so widening the allowlist does not re-open it.
+    - antigravity-cli-auto-updater-974169037036.us-central1.run.app
+  serviceDomains:
+    generativelanguage.googleapis.com: gemini-api-key
+  serviceAuth:
+    gemini-api-key: { headerName: x-goog-api-key }
+
+credentials:
+  sources:
+    gemini-api-key: { env: [GEMINI_API_KEY] }
+
+providers:
+  # The Antigravity account session is not declared here: agy stores it in the
+  # OS keyring, falling back to a file under ~/.gemini/antigravity-cli/ whose
+  # name upstream does not document. The config store persists it either way.
+  - name: gemini
+    credentials: [gemini-api-key]
