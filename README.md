@@ -58,7 +58,7 @@ for more information.
 |------|--------|------------|
 | [openclaw](tools/openclaw) | Experimental | [OpenClaw](https://openclaw.ai/) personal assistant: gateway, terminal UI, and browser dashboard |
 | [dsh](tools/dsh) | Experimental | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) with its browser UI |
-| [antigravity](tools/antigravity) | Experimental | Google's [Antigravity CLI](https://antigravity.google/docs/cli/overview) (`agy`), installed from the upstream GitHub release, with its telemetry opted out and its self-updater cut off. Needs the fix for [enclave#92](https://github.com/eclipse-enclave/enclave/issues/92) |
+| [antigravity](tools/antigravity) | Experimental | Google's [Antigravity CLI](https://antigravity.google/docs/cli/overview) (`agy`), installed from the upstream GitHub release, with its telemetry opted out and its self-updater cut off. Requires the Enclave rolling release from 2026-09-21 or newer |
 
 Experimental means what it says: each one pins a fast-moving upstream, gets
 thinner testing than a built-in tool, and has rough edges written down in its

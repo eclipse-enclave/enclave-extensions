@@ -12,4 +12,16 @@
 # change the rebuild cannot deliver.
 set -euo pipefail
 
-curl -fsS https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest | jq -r '.tag_name'
+ANTIGRAVITY_VERSION="${ANTIGRAVITY_VERSION:-latest}"
+
+version="$ANTIGRAVITY_VERSION"
+if [ "$version" = "latest" ]; then
+    version="$(curl -fsS https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest | jq -r '.tag_name // empty')"
+fi
+
+if [ -z "$version" ]; then
+    echo "Could not resolve the latest Antigravity CLI release" >&2
+    exit 1
+fi
+
+printf '%s\n' "$version"

@@ -5,13 +5,11 @@ Experimental. Google's
 Enclave tool: the agent runs on the project directory inside the usual
 container, with the read-write project mount and the DNS allowlist.
 
-**Needs an Enclave with the nested skills directory fix.** `agy` keeps its
-skills two levels below the config directory, the one store shape Enclave does
-not pre-create, so the container runtime creates the parent as root and `agy`
-dies on its first write
+**Requires the Enclave rolling release from 2026-09-21 or newer.** That
+release includes the nested skills directory fix
 ([enclave#92](https://github.com/eclipse-enclave/enclave/issues/92), fixed by
-[enclave#93](https://github.com/eclipse-enclave/enclave/pull/93)). Until that
-ships in the rolling release, use the workaround in
+[enclave#93](https://github.com/eclipse-enclave/enclave/pull/93)) needed for
+`agy`'s config layout. On older builds, use the workaround in
 [NOTES.md](NOTES.md#the-root-owned-config-directory).
 
 `agy` is distributed as a prebuilt binary; upstream publishes a changelog,
@@ -127,9 +125,9 @@ actually went, read `enclave network log` (`--follow`, `--verdict deny`,
 
 ## Not supported
 
-- Running on an Enclave without the fix for
-  [enclave#92](https://github.com/eclipse-enclave/enclave/issues/92). See the
-  note at the top and the workaround in [NOTES.md](NOTES.md).
+- Running on an Enclave older than the 2026-09-21 rolling release without the
+  fix for [enclave#92](https://github.com/eclipse-enclave/enclave/issues/92).
+  See the note at the top and the workaround in [NOTES.md](NOTES.md).
 - `enclave auth import` and `enclave auth export`. Upstream does not document
   the credential file's name, so `spec.yaml` declares no `authFiles`; sign in
   once inside a session and the config store keeps it.

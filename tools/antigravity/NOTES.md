@@ -12,8 +12,9 @@ the wire.
 - On an Enclave without the fix for
   [enclave#92](https://github.com/eclipse-enclave/enclave/issues/92), the
   first start fails with `mkdir /home/agent/.gemini/config/projects: permission
-  denied`. See [the root-owned config directory](#the-root-owned-config-directory)
-  for the workaround.
+  denied`. The fix is included in the rolling release from 2026-09-21 onward;
+  see [the root-owned config directory](#the-root-owned-config-directory) for
+  the workaround on older builds.
 - `GEMINI_API_KEY` alone does nothing. Set `"modelProvider": "gemini"` in the
   settings as well, or the CLI keeps asking for a Google sign-in.
 - Sign-in may not survive a restart. Upstream
@@ -72,11 +73,10 @@ therefore disappears from the file after the very first run. Enclave copies a
 settings template only when the target does not exist yet, so without help the
 privacy opt-out would apply exactly once.
 
-`entrypoint.d/setup.sh` merges the three defaults under the file on every
-start (`defaults * .` in `jq`), which restores what was dropped and touches
-nothing else. The same mechanism means a value you flip inside a session is
-kept only while it differs from the CLI's default: flip it back and it
-vanishes, and the entrypoint's value returns.
+`entrypoint.d/setup.sh` merges the settings template over the file on every
+start, which restores what was dropped, reverts changes to those three privacy
+settings, and leaves unrelated settings untouched. The template is the single
+source for the enforced values.
 
 A `settings.json` that `agy` itself refuses to parse is left alone with a
 warning rather than overwritten, so a broken file is repaired by hand.
@@ -159,8 +159,10 @@ key unless `modelProvider` is `gemini` in the settings.
 ## Egress
 
 The rendered allowlist is `antigravity.google` plus the shared fragments for
-Google, GitHub, npm, PyPI, Go, Rust, CDNs, and TLS. `antigravity.google` is
-its own top-level domain and not covered by the Google fragment. The Google
+Google, GitHub, npm, PyPI, Go, Rust, CDNs, and TLS. `antigravity.google` is a
+domain under the `.google` top-level domain and is not covered by the Google
+fragment. The package registries support dependencies of the projects the
+coding agent works on; they are not `agy` runtime dependencies. The Google
 fragment is wide, and most of it is needed: `accounts.google.com` and
 `oauth2.googleapis.com` for sign-in and token refresh, `cloudcode-pa` and
 `aicode.googleapis.com` for the agent backend, `generativelanguage` for

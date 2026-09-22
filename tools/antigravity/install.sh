@@ -21,7 +21,7 @@ set -euo pipefail
 
 # Release to install: "latest", or a pinned tag like "1.2.5". Pinning here
 # without pinning check-update.sh means the update probe keeps reporting the
-# newest upstream tag and marking the image stale -- pin both or neither.
+# newest upstream tag and marking the image stale; pin both or neither.
 ANTIGRAVITY_VERSION="${ANTIGRAVITY_VERSION:-latest}"
 
 REPO="google-antigravity/antigravity-cli"
@@ -65,6 +65,8 @@ if [ -z "$manifest_version" ]; then
     echo "Warning: upstream manifest unavailable; installing ${version} without a checksum check" >&2
 elif [ "$manifest_version" != "$version" ]; then
     echo "Note: upstream manifest describes ${manifest_version}, not ${version}; no checksum published for a pinned release" >&2
+elif [ -z "$manifest_sha512" ]; then
+    echo "Warning: upstream manifest has no SHA-512 for ${version}; installing without a checksum check" >&2
 else
     echo "${manifest_sha512}  $tmp/agy.tar.gz" | sha512sum -c - > /dev/null
     echo "Checksum of ${version} verified against the upstream manifest"

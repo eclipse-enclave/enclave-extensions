@@ -61,6 +61,7 @@ credentials:
     gemini-api-key: { env: [GEMINI_API_KEY] }
 
 providers:
+  # "gemini" matches agy's modelProvider value; provider names are tool-native.
   # The Antigravity account session is not declared here: agy stores it in the
   # OS keyring, falling back to a file under ~/.gemini/antigravity-cli/ whose
   # name upstream does not document. The config store persists it either way.
