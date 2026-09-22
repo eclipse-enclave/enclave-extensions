@@ -7,16 +7,16 @@
 # SPDX-License-Identifier: MIT
 
 # Upstream fingerprint for enclave's automatic update probe: the newest
-# Antigravity CLI release tag. Pin this to the same value as install.sh's
-# ANTIGRAVITY_VERSION when you pin the version, or the probe will report a
-# change the rebuild cannot deliver.
+# Antigravity CLI release tag. ANTIGRAVITY_VERSION is read exactly as install.sh
+# reads it, so pinning the variable pins the probe with it and the probe cannot
+# report a change the rebuild will not deliver.
 set -euo pipefail
 
 ANTIGRAVITY_VERSION="${ANTIGRAVITY_VERSION:-latest}"
 
 version="$ANTIGRAVITY_VERSION"
 if [ "$version" = "latest" ]; then
-    version="$(curl -fsS https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest | jq -r '.tag_name // empty')"
+    version="$(curl -fsSL https://api.github.com/repos/google-antigravity/antigravity-cli/releases/latest | jq -r '.tag_name // empty')"
 fi
 
 if [ -z "$version" ]; then

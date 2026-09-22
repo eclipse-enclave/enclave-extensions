@@ -19,17 +19,30 @@ mkdir -p "$HOME/.gemini/antigravity-cli" "$HOME/.gemini/config"
 # win while unrelated user settings remain untouched.
 _settings="${ENCLAVE_TOOL_SETTINGS_TARGET:-$HOME/.gemini/antigravity-cli/settings.json}"
 _defaults="${ENCLAVE_TOOL_SETTINGS_TEMPLATE:-/usr/local/share/enclave/templates/antigravity-settings.json}"
-if command -v jq >/dev/null 2>&1; then
-    [ -s "$_settings" ] || echo '{}' > "$_settings"
-    _tmp="$(mktemp)"
-    if jq -s '.[0] * .[1]' "$_settings" "$_defaults" > "$_tmp" 2>/dev/null; then
-        mv "$_tmp" "$_settings"
-    else
-        # A settings.json agy itself refuses to parse is repaired by hand, not
-        # by this script: overwriting it here would discard the broken file.
-        rm -f "$_tmp"
-        echo "Warning: could not apply privacy defaults to $_settings" >&2
-    fi
-    unset _tmp
+
+# jq ships in the base image, and the template is baked in from
+# templates/settings.json. Fail closed if either is ever absent: continuing
+# would start the session with telemetry and workspace access left at agy's own
+# defaults, which is the opposite of what this extension promises.
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq is required to apply the Antigravity privacy defaults" >&2
+    exit 1
 fi
-unset _settings _defaults
+if [ ! -f "$_defaults" ]; then
+    echo "Error: Antigravity settings template is missing: $_defaults" >&2
+    exit 1
+fi
+
+[ -s "$_settings" ] || echo '{}' > "$_settings"
+_tmp="$(mktemp)"
+if jq -s '.[0] * .[1]' "$_settings" "$_defaults" > "$_tmp" 2>/dev/null; then
+    mv "$_tmp" "$_settings"
+else
+    # A settings.json agy itself refuses to parse is repaired by hand, not by
+    # this script: overwriting it here would discard the broken file. Do not
+    # start with the privacy defaults unapplied either.
+    rm -f "$_tmp"
+    echo "Error: could not apply the privacy defaults to $_settings" >&2
+    exit 1
+fi
+unset _tmp _settings _defaults

@@ -27,6 +27,15 @@ ANTIGRAVITY_VERSION="${ANTIGRAVITY_VERSION:-latest}"
 REPO="google-antigravity/antigravity-cli"
 MANIFEST_BASE="https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests"
 
+# jq parses both the release tag and the checksum manifest below. It ships in
+# the base image; fail here rather than further down, where a missing parser
+# would be reported as an unreachable manifest host and quietly downgrade the
+# install to an unverified one.
+if ! command -v jq >/dev/null 2>&1; then
+    echo "jq is required to resolve the Antigravity release and verify its checksum" >&2
+    exit 1
+fi
+
 case "$(uname -m)" in
     x86_64)  ASSET_ARCH="x64";   MANIFEST_ARCH="amd64" ;;
     aarch64) ASSET_ARCH="arm64"; MANIFEST_ARCH="arm64" ;;
@@ -38,10 +47,10 @@ esac
 
 version="$ANTIGRAVITY_VERSION"
 if [ "$version" = "latest" ]; then
-    version="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | jq -r '.tag_name')"
+    version="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | jq -r '.tag_name // empty')"
 fi
 
-if [ -z "$version" ] || [ "$version" = "null" ]; then
+if [ -z "$version" ]; then
     echo "Could not resolve which Antigravity CLI release to install" >&2
     exit 1
 fi
@@ -59,10 +68,16 @@ curl -fsSL \
 # reported rather than fatal: the download itself came over TLS from the
 # upstream org, which is what the pin already trusts.
 manifest="$(curl -fsSL "${MANIFEST_BASE}/linux_${MANIFEST_ARCH}.json" 2>/dev/null || true)"
-manifest_version="$(printf '%s' "$manifest" | jq -r '.version // empty' 2>/dev/null || true)"
-manifest_sha512="$(printf '%s' "$manifest" | jq -r '.sha512 // empty' 2>/dev/null || true)"
-if [ -z "$manifest_version" ]; then
-    echo "Warning: upstream manifest unavailable; installing ${version} without a checksum check" >&2
+manifest_version=""
+manifest_sha512=""
+if [ -n "$manifest" ]; then
+    manifest_version="$(printf '%s' "$manifest" | jq -r '.version // empty' 2>/dev/null)" || manifest_version=""
+    manifest_sha512="$(printf '%s' "$manifest" | jq -r '.sha512 // empty' 2>/dev/null)" || manifest_sha512=""
+fi
+if [ -z "$manifest" ]; then
+    echo "Warning: upstream manifest host unreachable; installing ${version} without a checksum check" >&2
+elif [ -z "$manifest_version" ]; then
+    echo "Warning: upstream manifest is not the expected JSON; installing ${version} without a checksum check" >&2
 elif [ "$manifest_version" != "$version" ]; then
     echo "Note: upstream manifest describes ${manifest_version}, not ${version}; no checksum published for a pinned release" >&2
 elif [ -z "$manifest_sha512" ]; then

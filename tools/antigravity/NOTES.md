@@ -32,6 +32,9 @@ the wire.
   as `agy` keeps writing it down. See [sparse settings](#sparse-settings).
 - The browser tools want to download a Playwright browser at runtime, which
   the allowlist does not cover. Treat them as unavailable.
+- Whether a repository-local `agy` configuration can weaken `--no-yolo` was not
+  verified. Amp needed a policy plugin because its workspace settings outrank
+  the user file; the equivalent question for `agy` is open.
 - `enclave tools update antigravity` refreshes this extension from git. The
   pinned version, if you set one, changes only when `install.sh` changes here.
 
@@ -78,8 +81,11 @@ start, which restores what was dropped, reverts changes to those three privacy
 settings, and leaves unrelated settings untouched. The template is the single
 source for the enforced values.
 
-A `settings.json` that `agy` itself refuses to parse is left alone with a
-warning rather than overwritten, so a broken file is repaired by hand.
+A `settings.json` that `agy` itself refuses to parse is left alone rather than
+overwritten, so a broken file is repaired by hand. Startup then stops instead of
+continuing: the merge is the only thing applying the privacy values, so running
+without it would silently hand the session agy's own defaults. A missing `jq` or
+a missing template stops startup for the same reason.
 
 ## Telemetry paths
 

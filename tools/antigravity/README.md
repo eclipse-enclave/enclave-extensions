@@ -46,9 +46,9 @@ SHA-512 whenever the manifest describes the release being installed.
 
 The install tracks the newest upstream tag, and `check-update.sh` reports that
 tag to Enclave's update probe. Upstream cuts a release most weekdays. Pin a
-version by setting `ANTIGRAVITY_VERSION` in both `install.sh` and
-`check-update.sh`; pinning only one leaves the probe reporting a change the
-rebuild cannot deliver.
+version by setting `ANTIGRAVITY_VERSION`; `install.sh` and `check-update.sh`
+both read it, so the probe reports the release the rebuild will actually
+deliver.
 
 ## Authentication
 
@@ -99,6 +99,11 @@ connection the agent itself uses. Blocking that would block the agent, so
 Sessions start with `--dangerously-skip-permissions`, as they do for the other
 agent tools, since yolo is Enclave's default. Pass `--no-yolo` for the CLI's own
 review prompts.
+
+Not verified here: whether a repository-local `agy` configuration can weaken
+those prompts, the way a checked-in `.amp/settings.json` can for Amp. Amp needed
+a policy plugin to close that path; whether `agy` has an equivalent one is open.
+Until it is checked, treat `--no-yolo` on an untrusted repository as unproven.
 
 ## State and egress
 
