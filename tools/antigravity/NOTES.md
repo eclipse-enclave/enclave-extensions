@@ -33,8 +33,7 @@ the wire.
 - The browser tools want to download a Playwright browser at runtime, which
   the allowlist does not cover. Treat them as unavailable.
 - Whether a repository-local `agy` configuration can weaken `--no-yolo` was not
-  verified. Amp needed a policy plugin because its workspace settings outrank
-  the user file; the equivalent question for `agy` is open.
+  verified. Treat it as unproven on an untrusted repository.
 - `enclave tools update antigravity` refreshes this extension from git. The
   pinned version, if you set one, changes only when `install.sh` changes here.
 

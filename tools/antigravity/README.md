@@ -101,9 +101,8 @@ agent tools, since yolo is Enclave's default. Pass `--no-yolo` for the CLI's own
 review prompts.
 
 Not verified here: whether a repository-local `agy` configuration can weaken
-those prompts, the way a checked-in `.amp/settings.json` can for Amp. Amp needed
-a policy plugin to close that path; whether `agy` has an equivalent one is open.
-Until it is checked, treat `--no-yolo` on an untrusted repository as unproven.
+those prompts. Until it is checked, treat `--no-yolo` on an untrusted repository
+as unproven.
 
 ## State and egress
 
