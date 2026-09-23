@@ -1,0 +1,7 @@
+{
+  "amp.updates.mode": "disabled",
+  "amp.remoteThreadCreation.enabled": false,
+  "amp.notifications.enabled": false,
+  "amp.git.commit.ampThread.enabled": false,
+  "amp.git.commit.coauthor.enabled": false
+}
