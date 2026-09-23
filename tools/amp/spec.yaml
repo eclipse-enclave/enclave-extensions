@@ -1,0 +1,76 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+schemaVersion: "1"
+kind: sandbox
+name: amp
+displayName: Amp
+description: "Experimental: Sourcegraph's Amp coding agent CLI"
+defaultIncluded: false
+
+sandbox:
+  entrypoint: { run: [amp] }
+  # amp spreads its state over three XDG directories: ~/.config/amp holds
+  # settings.json and the global skills directory, ~/.cache/amp holds the logs,
+  # and ~/.local/share/amp holds account state. Use an Amp-only XDG data root
+  # as the config store: under shared auth, entrypoint.d/setup.sh redirects
+  # XDG_DATA_HOME to the selected auth mount so Amp writes account state there
+  # directly instead of atomically replacing Enclave's auth-file symlink.
+  # Under project auth (where there is no auth mount), it points XDG_DATA_HOME
+  # at this project store instead.
+  configDir: .local/share/enclave-amp
+  # Enclave requires skillsDir below configDir, so managed skills are composed
+  # into the store rather than into ~/.config/amp/skills, where amp looks for
+  # global skills. entrypoint.d/setup.sh links the latter at the former.
+  skillsDir: .local/share/enclave-amp/amp/skills
+  settingsFile: amp-settings.json
+  settingsTarget: .local/share/enclave-amp/amp/settings.json
+  # Amp still accepts --dangerously-allow-all for compatibility even though it
+  # omits the flag from --help. The entrypoint also keeps the persisted setting
+  # in sync, while a system policy plugin enforces prompts under --no-yolo.
+  yoloFlag: --dangerously-allow-all
+  yoloEnabled: true
+  continueArgs: [last]
+  resumeArgs: [threads, continue]
+  # The CLI bundles SQLite and keeps local thread state beside the credential.
+  qemuStoreCacheMmap: true
+  # No passthroughPaths: host config passthrough resolves below hostConfigDir,
+  # and the files worth passing through (settings.json, skills/) live in
+  # ~/.config/amp on the host, outside it.
+  hostConfigDir: .local/share
+  hostCredentialsFile: amp/secrets.json
+
+environment:
+  variables:
+    # Terminal access from ampcode.com for a thread opened on another client.
+    # Amp documents 0 as disabled when no explicit CLI flag overrides it; a
+    # session's shell is the thing the sandbox exists to contain.
+    AMP_REMOTE_CONTROL_TERMINAL: "0"
+
+network:
+  deniedDomains:
+    # Where `amp update` fetches binaries. The allowlist has to resolve
+    # ampcode.com for the agent backend and dnsmasq matches subdomains, so this
+    # host is denied explicitly instead of left out: deny out-ranks allow, and
+    # the binary the image was built with stays the binary that runs.
+    - static.ampcode.com
+  serviceDomains:
+    ampcode.com: amp-api-key
+  serviceAuth:
+    amp-api-key: { headerName: authorization, valueFormat: "Bearer %s" }
+
+credentials:
+  sources:
+    amp-api-key: { env: [AMP_API_KEY] }
+
+providers:
+  - name: amp
+    credentials: [amp-api-key]
+    authFiles: [amp/secrets.json]
+    authSession:
+      checks:
+        - { file: amp/secrets.json, type: file_exists }
