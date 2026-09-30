@@ -64,14 +64,26 @@ else
 fi
 
 # In yolo mode, default the workspace to trusted so agy skips its folder trust prompt.
-if [ "${ENCLAVE_YOLO:-}" = "1" ] && [ -n "${PROJECT_DIR:-}" ]; then
+# In non-yolo mode, remove the workspace so trust granted in a previous yolo session
+# does not persist into a --no-yolo session in the same project.
+if [ -n "${PROJECT_DIR:-}" ]; then
     _tmp="$(mktemp)"
-    if jq --arg dir "$PROJECT_DIR" \
-        '.trustedWorkspaces = (((.trustedWorkspaces // []) + [$dir]) | unique)' \
-        "$_settings" > "$_tmp" 2>/dev/null; then
-        mv "$_tmp" "$_settings"
+    if [ "${ENCLAVE_YOLO:-}" = "1" ]; then
+        if jq --arg dir "$PROJECT_DIR" \
+            '.trustedWorkspaces = (((.trustedWorkspaces // []) + [$dir]) | unique)' \
+            "$_settings" > "$_tmp" 2>/dev/null; then
+            mv "$_tmp" "$_settings"
+        else
+            rm -f "$_tmp"
+        fi
     else
-        rm -f "$_tmp"
+        if jq --arg dir "$PROJECT_DIR" \
+            '.trustedWorkspaces = ((.trustedWorkspaces // []) - [$dir])' \
+            "$_settings" > "$_tmp" 2>/dev/null; then
+            mv "$_tmp" "$_settings"
+        else
+            rm -f "$_tmp"
+        fi
     fi
 fi
 unset _tmp _settings _defaults
