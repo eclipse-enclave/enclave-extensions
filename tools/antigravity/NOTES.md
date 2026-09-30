@@ -86,6 +86,23 @@ continuing: the merge is the only thing applying the privacy values, so running
 without it would silently hand the session agy's own defaults. A missing `jq` or
 a missing template stops startup for the same reason.
 
+## Onboarding and workspace trust
+
+`agy` runs an interactive onboarding flow (terminal color theme selection, followed
+by a "Help improve Antigravity" telemetry prompt) whenever
+`~/.gemini/antigravity-cli/cache/onboarding.json` is missing or has
+`onboardingComplete: false`. Because Enclave keeps config stores per project,
+every new project would otherwise show this welcome flow on first run.
+`entrypoint.d/setup.sh` pre-seeds `cache/onboarding.json` with
+`onboardingComplete: true`, which skips the wizard entirely while the settings
+template enforces `enableTelemetry: false`.
+
+Similarly, `agy` prompts to trust the folder ("Do you trust the contents of this
+project?") unless the project workspace path is present in `trustedWorkspaces`
+in `settings.json`. In YOLO mode (`ENCLAVE_YOLO=1`), `entrypoint.d/setup.sh`
+adds `$PROJECT_DIR` to `trustedWorkspaces`, skipping the trust prompt inside the
+container sandbox.
+
 ## Telemetry paths
 
 Three paths carry usage data out, and the extension treats each differently:
