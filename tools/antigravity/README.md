@@ -57,9 +57,11 @@ Two ways in, and they are independent:
 - **Antigravity account (Google sign-in).** Run `agy` and follow the prompt.
   The CLI detects that it is in a container and uses the paste-a-code flow: it
   prints an authorization URL, you open it in your host browser and paste the
-  code back. No callback port has to be published. Credentials land in a file
-  under `~/.gemini/antigravity-cli/` (the OS keyring is skipped without a
-  D-Bus session bus), which the config store persists across sessions.
+  code back. No callback port has to be published. Credentials land in
+  `~/.gemini/antigravity-cli/antigravity-oauth-token` (the OS keyring is
+  skipped without a D-Bus session bus), which lives in the shared auth store,
+  so one sign-in covers every project; `--auth-name` selects separate
+  identities.
 - **Gemini API key.** Export `GEMINI_API_KEY` *and* set `"modelProvider":
   "gemini"` in the CLI settings; the key alone is ignored. The gateway injects
   the key as `x-goog-api-key` on requests to
@@ -132,9 +134,6 @@ actually went, read `enclave network log` (`--follow`, `--verdict deny`,
 - Running on an Enclave older than the 2026-09-21 rolling release without the
   fix for [enclave#92](https://github.com/eclipse-enclave/enclave/issues/92).
   See the note at the top and the workaround in [NOTES.md](NOTES.md).
-- `enclave auth import` and `enclave auth export`. Upstream does not document
-  the credential file's name, so `spec.yaml` declares no `authFiles`; sign in
-  once inside a session and the config store keeps it.
 - `enclave resume`. `agy` has no flag for its conversation picker, so it falls
   back to `--continue`; use `/resume` inside the session.
 - The browser tools. They download a Playwright browser at runtime

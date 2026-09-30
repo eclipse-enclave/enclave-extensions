@@ -62,8 +62,9 @@ credentials:
 
 providers:
   # "gemini" matches agy's modelProvider value; provider names are tool-native.
-  # The Antigravity account session is not declared here: agy stores it in the
-  # OS keyring, falling back to a file under ~/.gemini/antigravity-cli/ whose
-  # name upstream does not document. The config store persists it either way.
+  # Without an OS keyring agy stores the Antigravity account session in
+  # antigravity-cli/antigravity-oauth-token. Declaring it moves the session into
+  # the shared auth store so a login carries across projects and --auth-name.
   - name: gemini
     credentials: [gemini-api-key]
+    authFiles: [antigravity-cli/antigravity-oauth-token]
