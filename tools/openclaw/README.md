@@ -37,7 +37,7 @@ The gateway refuses a non-loopback bind without auth, so
 again later with:
 
 ```bash
-enclave exec --tool openclaw -- openclaw config get gateway.auth.token
+enclave exec --tool openclaw -- openclaw gateway auth-token --show
 ```
 
 There is no onboarding wizard to click through. `templates/settings.json` seeds
