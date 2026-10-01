@@ -86,6 +86,25 @@ continuing: the merge is the only thing applying the privacy values, so running
 without it would silently hand the session agy's own defaults. A missing `jq` or
 a missing template stops startup for the same reason.
 
+## Onboarding and workspace trust
+
+`agy` runs an interactive onboarding flow (terminal color theme selection, followed
+by a "Help improve Antigravity" telemetry prompt) whenever
+`~/.gemini/antigravity-cli/cache/onboarding.json` is missing or has
+`onboardingComplete: false`. Because Enclave keeps config stores per project,
+every new project would otherwise show this welcome flow on first run.
+`entrypoint.d/setup.sh` pre-seeds `cache/onboarding.json` with
+`onboardingComplete: true`, which skips the wizard entirely while the settings
+template enforces `enableTelemetry: false`.
+
+Similarly, `agy` prompts to trust the folder ("Do you trust the contents of this
+project?") unless the project workspace path is present in `trustedWorkspaces`
+in `settings.json`. In YOLO mode (`ENCLAVE_YOLO=1`), `entrypoint.d/setup.sh`
+adds `$PROJECT_DIR` to `trustedWorkspaces`, skipping the trust prompt inside the
+container sandbox. In non-YOLO mode, `setup.sh` explicitly removes
+`$PROJECT_DIR` from `trustedWorkspaces` so trust granted in a previous YOLO
+session does not carry over into `--no-yolo`.
+
 ## Telemetry paths
 
 Three paths carry usage data out, and the extension treats each differently:
@@ -149,12 +168,16 @@ mkdir -p "$store/config"
 Ephemeral sessions (`--no-persist`) recreate the store, so they hit it again.
 
 ## Credentials
-
-The Antigravity account session is not declared in `spec.yaml`: `agy` stores
-it in the OS keyring, falling back without a D-Bus session bus to a file under
-`~/.gemini/antigravity-cli/` whose name upstream does not document and which
-is not discoverable in the binary. The config store persists it either way,
-but `enclave auth import` and `enclave auth export` have nothing to copy.
+ 
+The Google account session is stored in
+`~/.gemini/antigravity-cli/antigravity-oauth-token` when running without a
+D-Bus keyring daemon (as in the container). `spec.yaml` declares this under
+`authFiles`, so Enclave symlinks it to the shared auth store across projects,
+and `enclave auth import` / `export` copy it. Binary analysis of `agy`
+(`cliFileTokenStorage.updateStoredToken`) confirms that it opens the path
+directly with `O_WRONLY|O_CREATE|O_TRUNC` and writes in place rather than
+replacing the file atomically via a temporary file; symlinks are preserved
+across sign-in and token refreshes.
 
 `GEMINI_API_KEY` is declared with `serviceAuth`, so the container sees a
 per-session placeholder and the gateway injects the real key as

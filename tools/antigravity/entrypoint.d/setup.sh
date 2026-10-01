@@ -9,6 +9,23 @@
 # Antigravity CLI extension setup
 mkdir -p "$HOME/.gemini/antigravity-cli" "$HOME/.gemini/config"
 
+# Pre-seed onboarding completion in the cache so agy skips the first-run
+# welcome screen, terminal theme selection, and "Help improve Antigravity"
+# telemetry opt-in prompt for new projects.
+_cache_dir="$HOME/.gemini/antigravity-cli/cache"
+mkdir -p "$_cache_dir"
+_onboarding="$_cache_dir/onboarding.json"
+if [ ! -f "$_onboarding" ]; then
+    cat <<'EOF' > "$_onboarding"
+{
+  "consumerOnboardingComplete": true,
+  "enterpriseOnboardingComplete": false,
+  "onboardingComplete": true
+}
+EOF
+fi
+unset _cache_dir _onboarding
+
 # Re-assert the privacy settings on every start.
 #
 # The settings template is copied once, only when no settings.json exists yet,
@@ -45,4 +62,29 @@ else
     echo "Error: could not apply the privacy defaults to $_settings" >&2
     exit 1
 fi
+
+# In yolo mode, default the workspace to trusted so agy skips its folder trust prompt.
+# In non-yolo mode, remove the workspace so trust granted in a previous yolo session
+# does not persist into a --no-yolo session in the same project.
+if [ -n "${PROJECT_DIR:-}" ]; then
+    _tmp="$(mktemp)"
+    if [ "${ENCLAVE_YOLO:-}" = "1" ]; then
+        if jq --arg dir "$PROJECT_DIR" \
+            '.trustedWorkspaces = (((.trustedWorkspaces // []) + [$dir]) | unique)' \
+            "$_settings" > "$_tmp" 2>/dev/null; then
+            mv "$_tmp" "$_settings"
+        else
+            rm -f "$_tmp"
+        fi
+    else
+        if jq --arg dir "$PROJECT_DIR" \
+            '.trustedWorkspaces = ((.trustedWorkspaces // []) - [$dir])' \
+            "$_settings" > "$_tmp" 2>/dev/null; then
+            mv "$_tmp" "$_settings"
+        else
+            rm -f "$_tmp"
+        fi
+    fi
+fi
 unset _tmp _settings _defaults
+
