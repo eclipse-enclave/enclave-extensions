@@ -13,7 +13,7 @@ enclave --features +vnc …
 ```
 
 The feature needs a base image whose archive ships Chromium as a deb. The
-default Debian base does; on an Ubuntu base, which only ships Chromium as a
+default Debian base does. On an Ubuntu base, which only ships Chromium as a
 snap, the install fails and the build stops with an error naming this feature.
 
 It also ships a **host command**, `enclave vnc-viewer`, which runs on your host
@@ -30,8 +30,8 @@ enclave vnc-viewer [container-or-session-name]
 and launches a host-installed viewer: `xtigervncviewer` on Linux, the built-in
 Screen Sharing on macOS, or whatever `vnc_viewer` configures (see
 [Viewer configuration](#viewer-configuration)). Without an argument it picks
-the current project's only VNC-enabled container; with several running it lists
-them and asks for a name.
+the current project's only VNC-enabled container. With several running it
+lists them and asks for a name.
 
 It is a host command rather than something enclave runs in the session, because
 driving a host GUI is exactly what a sandboxed session cannot do. It needs
@@ -41,9 +41,9 @@ driving a host GUI is exactly what a sandboxed session cannot do. It needs
 To attach a client by hand instead: the RFB port (container `5900`) is
 published with an OS-assigned host port on the loopback interface, so
 concurrent sessions get distinct ports. The session prints the resolved
-`vnc://localhost:<port>` at startup; `enclave ps --json` reports it too (look
-for container port `5900`). Read the per-session password out of the session
-and point your client at it:
+`vnc://localhost:<port>` at startup, and `enclave ps --json` reports it too
+(look for container port `5900`). Read the per-session password out of the
+session and point your client at it:
 
 ```bash
 enclave exec --name <session> -- cat /tmp/enclave-vnc/vnc-password
@@ -52,9 +52,9 @@ vncviewer 127.0.0.1:<published-host-port>
 
 ## What runs in the container
 
-`commands.startup` launches `vnc-supervisor` (installed to `/usr/local/bin`)
-as the sandbox user. It keeps three components alive with per-component restart
-loops, logging to `/tmp/enclave-vnc/log/`:
+`commands.startup` launches `enclave-vnc-supervisor` (installed to
+`/usr/local/bin`) as the sandbox user. It keeps three components alive with
+per-component restart loops, logging to `/tmp/enclave-vnc/log/`:
 
 1. **Xvnc**: virtual X display `:99`, RFB server on the published container
    port `5900`, VncAuth required. It listens on all container interfaces
@@ -65,23 +65,45 @@ loops, logging to `/tmp/enclave-vnc/log/`:
    a one-shot watcher probes it and forwards it into the running browser once
    its TCP port accepts connections. Loading the URL directly would instead park
    the display on a connection-refused error page whenever the target server
-   starts later than the stack. Sessions can
-   also drive the browser on demand via `vnc-open`, which is how a consuming
-   feature opens a URL it only knows at runtime.
+   starts later than the stack. Sessions can also drive the browser on demand
+   via `enclave-vnc-open`, which is how a consuming feature opens a URL it only
+   knows at runtime.
 
-Both the supervisor and `vnc-open` launch Chromium through the shared
-`/usr/local/bin/vnc-chromium` wrapper, so the browser behaves the same however
-it was started; that script's header documents the switches it sets and why.
+A component that keeps crashing restarts after a delay that doubles up to a
+minute, and its log rotates to `<name>.log.1` once it passes 1 MiB. Stopping
+the supervisor with TERM or HUP stops all three components.
 
-The feature entrypoint additionally exports `DISPLAY=:99` and
-`BROWSER=/usr/local/bin/vnc-open`, and `install.sh` registers `vnc-open` as
-the image-wide `x-scheme-handler` for http/https (desktop entry plus
-`/etc/xdg/mimeapps.list`), so X clients and "open in browser" flows land on
-the contained display (`vnc-open`'s header explains why the scheme-handler
-registration, not just `$BROWSER`, is load-bearing). `vnc-open <url>` reuses
-the supervisor's Chromium profile, waiting briefly for its singleton if the
-stack is still booting, so URLs open in the running browser instead of racing
-it, and logs to `/tmp/enclave-vnc/log/vnc-open.log`.
+Both the supervisor and `enclave-vnc-open` launch Chromium through the shared
+`/usr/local/bin/enclave-vnc-chromium` wrapper, so the browser behaves the same
+however it was started. That script's header documents the switches it sets
+and why.
+
+The feature entrypoint additionally exports `DISPLAY=:99`, so X clients land
+on the contained display. `enclave-vnc-open <url>` reuses the supervisor's
+Chromium profile, waiting briefly for its singleton if the stack is still
+booting, so each URL opens as a new tab in the running browser instead of
+racing it. It refuses arguments that start with a dash and logs to
+`/tmp/enclave-vnc/log/vnc-open.log`.
+
+### Opening links on the display
+
+Routing "open in browser" flows to the contained Chromium is opt-in, because
+it also catches login flows such as `gh auth login --web`, and whatever you
+type into that browser is readable by the agent (see
+[Residual risks](#residual-risks)). Without it, nothing routes links to the
+display, so a login flow ends in the URL the tool prints, which you open on
+the host. Enable it per session:
+
+```bash
+VNC_OPEN_LINKS=1 enclave --features +vnc --pass-env VNC_OPEN_LINKS …
+```
+
+The feature entrypoint then exports `BROWSER=/usr/local/bin/enclave-vnc-open`
+and registers `enclave-vnc-open` as the sandbox user's `x-scheme-handler` for
+http/https (`enclave-vnc-open`'s header explains why that registration, not
+just `$BROWSER`, is load-bearing). The registration lives in files, so it also
+covers processes started with `docker exec`. Consuming features can call
+`enclave-vnc-open` directly either way.
 
 A set `DISPLAY` is also how many tools decide a GUI is available, so with this
 feature enabled `gpg` pinentry, `SSH_ASKPASS`, and `GIT_ASKPASS` prompts render
@@ -99,22 +121,24 @@ copies:
 
 Holding that password is what grants control of the display, and nothing else
 does. It is generated per session, so it reaches exactly one session's display
-and no other — which is why the (untrusted) agent knowing it is harmless, and
+and no other. That is why the (untrusted) agent knowing it is harmless, and
 why reading it out of the session is safe.
 
 The plaintext path is the **integration contract** for a trusted host-side
 viewer: `/tmp/enclave-vnc/vnc-password` inside the session, alongside the
 container port `5900` binding that `enclave ps --json` reports. The path is the
-contract; how a viewer reads it is up to the backend it drives. `enclave exec`
-always allocates a TTY, so it serves the interactive flow above but not a
-headless one — a non-interactive viewer needs a backend-level read (`docker
-exec` or `podman exec`) until the CLI grows a non-TTY exec.
+contract, and how a viewer reads it is up to the backend it drives.
+`enclave exec` always allocates a TTY, so it serves the interactive flow above
+but not a headless one. A non-interactive viewer needs a backend-level read
+(`docker exec` or `podman exec`) until the CLI grows a non-TTY exec.
 
 The `commands/host/vnc-viewer` script is that viewer: it reads the password
 through `docker exec` or `podman exec` (whichever engine holds the container)
 and hands it to the client through the environment (`VNC_PASSWORD`,
 `ENCLAVE_VNC_PASSWORD`) rather than argv, which `/proc` would expose to every
-local user for the viewer's lifetime.
+local user for the viewer's lifetime. The session can also rewrite the file, so
+the script refuses anything but the 20 characters of `[A-Za-z0-9]` the
+supervisor generates before it reaches a `vnc://` URL.
 
 ## Viewer configuration
 
@@ -129,8 +153,10 @@ files, global (`~/.config/enclave/config.json`) first and the project config
 enclave itself ignores the key, since the viewer is a host command rather than
 a session option, so it does not appear in `enclave config`.
 
-Unset, the default is `xtigervncviewer` on Linux and `open vnc://…` (macOS
-Screen Sharing) on macOS. Placeholders substituted into the command:
+Unset, the default is `xtigervncviewer` on Linux and Screen Sharing on macOS.
+Screen Sharing takes the password only inside a `vnc://` URL, so the script
+hands that URL to `osascript` on stdin rather than to `open` in argv.
+Placeholders substituted into a configured command:
 
 | Placeholder | Value |
 |-------------|-------|
@@ -149,12 +175,13 @@ environment is not.
 
 ## Configuration
 
-Environment variables read by the supervisor (set via a consuming feature's
-`environment.variables` or `-e`):
+Environment variables read by the feature (set via a consuming feature's
+`environment.variables`, the project `.env`, or `--pass-env`):
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `VNC_URL` | unset | Optional URL auto-forwarded into the browser once its port is reachable. Left unset, the display stays on the waiting page and sessions open pages on demand via `vnc-open`. |
+| `VNC_OPEN_LINKS` | unset | `1` routes "open in browser" flows to the display (see [Opening links on the display](#opening-links-on-the-display)). |
+| `VNC_URL` | unset | Optional URL auto-forwarded into the browser once its port is reachable. Left unset, the display stays on the waiting page and sessions open pages on demand via `enclave-vnc-open`. |
 | `VNC_URL_WAIT_SECONDS` | `300` | How long that forward waits for the URL's port before giving up and logging. |
 | `VNC_GEOMETRY` | `1600x1000` | Initial display size (a resize-capable client can change it) |
 | `VNC_DISPLAY` | `:99` | X display number |
@@ -163,10 +190,37 @@ The RFB port is not configurable: it must match the `ports:` declaration in
 `spec.yaml` (container port `5900`), so the supervisor hardcodes it.
 
 A consuming feature should leave `VNC_URL` unset whenever the page it wants is
-only determined at runtime, and call `vnc-open` with the full URL instead.
-Auto-forwarding a bare server root in that situation lands the display on a
-default view, which can clobber whatever state the intended URL would have
-selected.
+only determined at runtime, and call `enclave-vnc-open` with the full URL
+instead. Auto-forwarding a bare server root in that situation lands the
+display on a default view, which can clobber whatever state the intended URL
+would have selected.
+
+## Credentials
+
+None declared. The only secret is the per-session VNC password (see
+[Access control](#access-control)).
+
+## Egress
+
+The feature adds no allowlist entries and needs none at runtime. The contained
+Chromium browses through the session gateway like every other process in the
+session: pages the session serves on `localhost` load, anything else needs its
+domain on the allowlist. A denied domain fails at DNS, which Chromium shows as
+its offline page with `DNS_PROBE_FINISHED_NO_INTERNET` rather than as a
+gateway error. `enclave network log --verdict deny` names the domain. Widen the
+allowlist for one run with `--allow-domain`, or host-wide with
+`enclave network add-domain <domain> --global`.
+
+Chromium's own background traffic (component updates, sync, safe browsing) is
+switched off, so it does not fill the network log with denials.
+
+## Persistence
+
+Nothing persists. The Chromium profile (cookies, logins, history, open tabs),
+the password, and the logs live under `/tmp/enclave-vnc/` and go with the
+container when the session ends. That is deliberate: the agent runs as the
+same user and can read the profile, so a persistent one would hand every later
+session whatever was logged in to the contained browser.
 
 ## Troubleshooting
 
@@ -174,7 +228,18 @@ The entrypoint starts the supervisor with its stdout and stderr discarded, so
 the files under `/tmp/enclave-vnc/log/` are the only record. Start with
 `supervisor.log` (startup, auth-file generation, URL forwarding), then
 `xvnc.log`, `wm.log`, `browser.log`, and `vnc-open.log` for the individual
-components.
+components. A rotated `<name>.log.1` holds older output.
+
+On GNOME, the Locate Pointer accessibility setting (reveal the pointer with
+left Ctrl) can keep left-Ctrl shortcuts from reaching the viewer. Turn it off
+with `gsettings set org.gnome.desktop.interface locate-pointer false`.
+
+## Not supported
+
+- Ubuntu base images, which ship Chromium only as a snap.
+- Audio. RFB carries no sound.
+- Encrypted RFB. Xvnc only offers VncAuth (see
+  [Residual risks](#residual-risks)).
 
 ## Residual risks
 
@@ -191,8 +256,17 @@ covers the overall threat model a published display sits in. Feature-specific:
   namespace belongs to the session's gateway container on a bridge shared with
   other containers of the same engine, so those (including other sessions'
   gateways) can reach the RFB port directly, with VncAuth as the only gate.
+  VncAuth only authenticates. The framebuffer, keystrokes, and clipboard
+  travel unencrypted, so anything that can observe traffic on that bridge sees
+  the session in the clear.
 - A human can be phished by what the streamed page *shows*. A viewer cannot
   vouch for the session's content.
+- Whatever you enter in the contained Chromium (account passwords, 2FA codes,
+  the resulting session cookies) is readable by the agent: Chromium runs as
+  the sandbox user, keeps its profile in `/tmp/enclave-vnc/chromium` with
+  `--password-store=basic`, and draws on a display the agent can read. With
+  `VNC_OPEN_LINKS=1` that includes login flows that would otherwise end on the
+  host.
 - Clipboard crossing: Xvnc syncs the display's X selections with the RFB
   clipboard natively (`SendCutText`/`AcceptCutText`/`SetPrimary`/`SendPrimary`,
   all on by default), so any authenticated RFB client can exchange clipboard

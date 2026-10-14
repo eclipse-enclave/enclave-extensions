@@ -30,27 +30,27 @@ enclave_bin=${ENCLAVE_BIN:-enclave}
 enclave_verb=$(basename "$enclave_bin")
 
 die() {
-	printf 'vnc-viewer: %s\n' "$*" >&2
-	exit 1
+    printf 'vnc-viewer: %s\n' "$*" >&2
+    exit 1
 }
 
 info() {
-	printf 'vnc-viewer: %s\n' "$*" >&2
+    printf 'vnc-viewer: %s\n' "$*" >&2
 }
 
 usage() {
-	cat <<'EOF'
+    cat <<'EOF'
 Usage: enclave vnc-viewer [container-or-session-name]
 
 Open a host-installed VNC viewer on the contained display of a session started
 with the vnc feature (enclave --features +vnc).
 
 The argument is a container name from `enclave ps` or a session name passed to
---name. Without it, the current project's only VNC-enabled container is used;
-if several are running, their names are listed and one must be passed.
+--name. Without it, the current project's only VNC-enabled container is used.
+If several are running, their names are listed and one must be passed.
 
-The viewer defaults to xtigervncviewer (macOS: the built-in Screen Sharing via
-open) and is replaced with the vnc_viewer key in enclave's config.json:
+The viewer defaults to xtigervncviewer (macOS: the built-in Screen Sharing) and
+is replaced with the vnc_viewer key in enclave's config.json:
 
   {"vnc_viewer": ["remmina", "-c", "vnc://:{password}@{host}:{port}"]}
 
@@ -62,24 +62,24 @@ EOF
 
 requested=""
 while [ $# -gt 0 ]; do
-	case "$1" in
-	-h | --help)
-		usage
-		exit 0
-		;;
-	-*)
-		die "unknown flag $1 (try --help)"
-		;;
-	*)
-		[ -z "$requested" ] || die "expected at most one container or session name"
-		requested=$1
-		;;
-	esac
-	shift
+    case "$1" in
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    -*)
+        die "unknown flag $1 (try --help)"
+        ;;
+    *)
+        [ -z "$requested" ] || die "expected at most one container or session name"
+        requested=$1
+        ;;
+    esac
+    shift
 done
 
 command -v jq >/dev/null 2>&1 ||
-	die "jq is required (Debian/Ubuntu: apt install jq, macOS: brew install jq)"
+    die "jq is required (Debian/Ubuntu: apt install jq, macOS: brew install jq)"
 
 config_json=$("$enclave_bin" config --json) || die "cannot read the enclave config"
 global_config=$(printf '%s' "$config_json" | jq -r '.paths.global // empty')
@@ -89,76 +89,81 @@ project_hash=$(basename "$(dirname "$project_config")")
 
 sessions_json=$("$enclave_bin" ps --json) || die "cannot list enclave containers"
 
-# One tab-separated row per published RFB binding: name, session name, project
-# hash, host IP, host port. A session without this feature publishes no such
-# binding, which is what separates "no session" from "session without a
-# display" in the errors below.
+# One tab-separated row per container publishing the RFB port: name, session
+# name, project hash, host IP, host port. `enclave ps` lists every binding,
+# and a wildcard publish on an IPv6-enabled engine has two (0.0.0.0 and [::]),
+# so one is picked per container, IPv4 first. A session without this feature
+# publishes no such binding, which is what separates "no session" from
+# "session without a display" in the errors below.
 rows=$(printf '%s' "$sessions_json" | jq -r --arg port "$RFB_CONTAINER_PORT" '
-	.[]
-	| . as $session
-	| select(($session.name // "") != "")
-	| $session.ports[]?
-	| select(.containerPort == $port and (.hostPort // "") != "")
-	| select((.protocol // "") as $proto | $proto == "" or $proto == "tcp")
-	| [$session.name, ($session.sessionName // ""), ($session.projectHash // ""), (.hostIP // ""), .hostPort]
-	| @tsv
+    .[]
+    | . as $session
+    | select(($session.name // "") != "")
+    | [
+        $session.ports[]?
+        | select(.containerPort == $port and (.hostPort // "") != "")
+        | select((.protocol // "") as $proto | $proto == "" or $proto == "tcp")
+    ]
+    | (map(select((.hostIP // "") | contains(":") | not)) + .)[0] // empty
+    | [$session.name, ($session.sessionName // ""), ($session.projectHash // ""), (.hostIP // ""), .hostPort]
+    | @tsv
 ' | sort)
 
 # Rows matching field $1 against value $2, tab-separated.
 select_rows() {
-	printf '%s\n' "$rows" | awk -F '\t' -v field="$1" -v value="$2" 'NF > 0 && $field == value'
+    printf '%s\n' "$rows" | awk -F '\t' -v field="$1" -v value="$2" 'NF > 0 && $field == value'
 }
 
 count_rows() {
-	if [ -z "$1" ]; then
-		printf '0'
-	else
-		printf '%s\n' "$1" | wc -l | tr -d ' '
-	fi
+    if [ -z "$1" ]; then
+        printf '0'
+    else
+        printf '%s\n' "$1" | wc -l | tr -d ' '
+    fi
 }
 
 names_of() {
-	printf '%s\n' "$1" | cut -f 1 | sed 's/^/  /'
+    printf '%s\n' "$1" | cut -f 1 | sed 's/^/  /'
 }
 
 if [ -n "$requested" ]; then
-	# A container name is unique across projects and resolves verbatim, as it
-	# does in attach, stop, and theia. A session name is matched afterwards,
-	# preferring this project's sessions.
-	matched=$(select_rows 1 "$requested")
-	if [ -z "$matched" ]; then
-		matched=$(select_rows 2 "$requested" | awk -F '\t' -v hash="$project_hash" '$3 == hash')
-	fi
-	if [ -z "$matched" ]; then
-		matched=$(select_rows 2 "$requested")
-	fi
-	case "$(count_rows "$matched")" in
-	0)
-		die "no running enclave container named \"$requested\" with a VNC display (\`$enclave_verb ps\` lists the running ones)"
-		;;
-	1) ;;
-	*)
-		die "several containers match \"$requested\". Pass a container name explicitly:
+    # A container name is unique across projects and resolves verbatim, as it
+    # does in attach, stop, and theia. A session name is matched afterwards,
+    # preferring this project's sessions.
+    matched=$(select_rows 1 "$requested")
+    if [ -z "$matched" ]; then
+        matched=$(select_rows 2 "$requested" | awk -F '\t' -v hash="$project_hash" '$3 == hash')
+    fi
+    if [ -z "$matched" ]; then
+        matched=$(select_rows 2 "$requested")
+    fi
+    case "$(count_rows "$matched")" in
+    0)
+        die "no running enclave container named \"$requested\" with a VNC display (\`$enclave_verb ps\` lists the running ones)"
+        ;;
+    1) ;;
+    *)
+        die "several containers match \"$requested\". Pass a container name explicitly:
 $(names_of "$matched")"
-		;;
-	esac
+        ;;
+    esac
 else
-	matched=$(printf '%s\n' "$rows" | awk -F '\t' -v hash="$project_hash" 'NF > 0 && $3 == hash')
-	case "$(count_rows "$matched")" in
-	0)
-		other=$(printf '%s' "$sessions_json" | jq -r --arg hash "$project_hash" '
-			.[] | select((.projectHash // "") == $hash) | .name' | sort | tr '\n' ' ')
-		if [ -n "${other// /}" ]; then
-			die "no running enclave container for this project has a VNC display. Restart with \`$enclave_verb --features +vnc\` (running: ${other% })"
-		fi
-		die "no running enclave container for this project (start one with \`$enclave_verb --features +vnc\`)"
-		;;
-	1) ;;
-	*)
-		die "multiple running enclave containers with a VNC display. Pass a container or session name explicitly:
+    matched=$(printf '%s\n' "$rows" | awk -F '\t' -v hash="$project_hash" 'NF > 0 && $3 == hash')
+    case "$(count_rows "$matched")" in
+    0)
+        other=$(printf '%s' "$sessions_json" | jq -r --arg hash "$project_hash" '
+            .[] | select((.projectHash // "") == $hash) | .name' | sort | tr '\n' ' ')
+        if [ -n "${other// /}" ]; then
+            die "no running enclave container for this project has a VNC display. Restart with \`$enclave_verb --features +vnc\` (running: ${other% })"
+        fi
+        die "no running enclave container for this project (start one with \`$enclave_verb --features +vnc\`)"
+        ;;
+    1) ;;
+    *)
+        die "multiple running enclave containers with a VNC display. Pass a container or session name explicitly:
 $(names_of "$matched")"
-		;;
-	esac
+        ;;
+    esac
 fi
 
 container=$(printf '%s' "$matched" | cut -f 1)
@@ -178,11 +183,11 @@ esac
 # duplicating enclave's backend resolution here.
 engine=""
 for candidate in docker podman; do
-	if command -v "$candidate" >/dev/null 2>&1 &&
-		"$candidate" container inspect "$container" >/dev/null 2>&1; then
-		engine=$candidate
-		break
-	fi
+    if command -v "$candidate" >/dev/null 2>&1 &&
+        "$candidate" container inspect "$container" >/dev/null 2>&1; then
+        engine=$candidate
+        break
+    fi
 done
 [ -n "$engine" ] || die "neither docker nor podman knows a container named \"$container\""
 
@@ -190,36 +195,41 @@ done
 # `enclave run` can legitimately arrive before the password exists and before
 # Xvnc listens. Wait for both.
 probe_port() {
-	(exec 3<>"/dev/tcp/$host/$port") >/dev/null 2>&1
+    (exec 3<>"/dev/tcp/$host/$port") >/dev/null 2>&1
 }
 
+# The session can rewrite the password file, so its content is untrusted. The
+# supervisor always generates 20 characters of [A-Za-z0-9], and anything else
+# is refused before it reaches a vnc:// URL or the AppleScript below, where it
+# could redirect the viewer or run code on the host. A file the supervisor is
+# still writing fails the same check and is retried. Error output is stripped
+# to printable characters before it reaches the terminal.
 password=""
 last_error=""
 notified=0
 deadline=$(($(date +%s) + READY_TIMEOUT))
 while :; do
-	if out=$("$engine" exec "$container" cat "$PASSWORD_PATH" 2>&1); then
-		candidate_password=$(printf '%s' "$out" | tr -d '[:space:]')
-		if [ -z "$candidate_password" ]; then
-			last_error="$PASSWORD_PATH is empty"
-		elif probe_port; then
-			password=$candidate_password
-			break
-		else
-			last_error="cannot connect to $host:$port"
-		fi
-	else
-		last_error="read $PASSWORD_PATH in $container: $out"
-	fi
+    if out=$("$engine" exec "$container" cat "$PASSWORD_PATH" 2>&1); then
+        if [[ ! $out =~ ^[A-Za-z0-9]{20}$ ]]; then
+            last_error="$PASSWORD_PATH does not hold a 20-character alphanumeric password"
+        elif probe_port; then
+            password=$out
+            break
+        else
+            last_error="cannot connect to $host:$port"
+        fi
+    else
+        last_error="read $PASSWORD_PATH in $container: $(printf '%s' "$out" | tr -cd '[:print:]')"
+    fi
 
-	if [ "$(date +%s)" -ge "$deadline" ]; then
-		die "the VNC display of $container is not ready after ${READY_TIMEOUT}s: $last_error (check the supervisor logs in /tmp/enclave-vnc/log)"
-	fi
-	if [ "$notified" -eq 0 ]; then
-		info "waiting for the VNC display of $container to come up"
-		notified=1
-	fi
-	sleep "$POLL_INTERVAL"
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+        die "the VNC display of $container is not ready after ${READY_TIMEOUT}s: $last_error (check the supervisor logs in /tmp/enclave-vnc/log)"
+    fi
+    if [ "$notified" -eq 0 ]; then
+        info "waiting for the VNC display of $container to come up"
+        notified=1
+    fi
+    sleep "$POLL_INTERVAL"
 done
 
 # vnc_viewer is read straight out of enclave's own config files, global first
@@ -227,32 +237,36 @@ done
 # enclave itself ignores it: the viewer is a host command, not a session option.
 viewer=()
 read_viewer() {
-	[ -n "$1" ] && [ -f "$1" ] || return 0
-	local kind
-	kind=$(jq -r 'if has("vnc_viewer") then (.vnc_viewer | type) else "absent" end' "$1" 2>/dev/null) ||
-		die "cannot parse $1"
-	case "$kind" in
-	absent | "null") return 0 ;;
-	array) ;;
-	*) die "vnc_viewer in $1 must be an array of strings, not $kind" ;;
-	esac
-	viewer=()
-	while IFS= read -r arg; do
-		viewer+=("$arg")
-	done < <(jq -r '.vnc_viewer[] | tostring' "$1")
+    [ -n "$1" ] && [ -f "$1" ] || return 0
+    local kind
+    kind=$(jq -r 'if has("vnc_viewer") then (.vnc_viewer | type) else "absent" end' "$1" 2>/dev/null) ||
+        die "cannot parse $1"
+    case "$kind" in
+    absent | "null") return 0 ;;
+    array) ;;
+    *) die "vnc_viewer in $1 must be an array of strings, not $kind" ;;
+    esac
+    viewer=()
+    while IFS= read -r arg; do
+        viewer+=("$arg")
+    done < <(jq -r '.vnc_viewer[] | tostring' "$1")
 }
 read_viewer "$global_config"
 read_viewer "$project_config"
 
-# macOS ships Screen Sharing, which handles vnc:// URLs including the password,
-# so nothing needs installing there. Elsewhere the reference viewer is
-# TigerVNC's, which takes the password from the environment.
+# macOS ships Screen Sharing, so nothing needs installing there. It takes the
+# password only inside a vnc:// URL, which `open <url>` would put in argv.
+# osascript reads the URL from stdin instead and hands it to Screen Sharing
+# through Launch Services, so the password appears in no argv. Elsewhere the
+# reference viewer is TigerVNC's, which takes the password from the
+# environment.
 if [ "${#viewer[@]}" -eq 0 ]; then
-	if [ "$(uname -s)" = "Darwin" ]; then
-		viewer=(open "vnc://:{password}@{host}:{port}")
-	else
-		viewer=(xtigervncviewer "{host}:{port}")
-	fi
+    if [ "$(uname -s)" = "Darwin" ]; then
+        info "opening $container display at $host:$port with Screen Sharing"
+        printf 'open location "vnc://:%s@%s:%s"\n' "$password" "$host" "$port" | osascript
+        exit
+    fi
+    viewer=(xtigervncviewer "{host}:{port}")
 fi
 
 # A command that references neither {host} nor {port} gets "<host>:<port>"
@@ -260,20 +274,20 @@ fi
 argv=()
 addressed=0
 for arg in "${viewer[@]}"; do
-	case "$arg" in
-	*"{host}"* | *"{port}"*) addressed=1 ;;
-	esac
-	arg=${arg//\{host\}/$host}
-	arg=${arg//\{port\}/$port}
-	arg=${arg//\{password\}/$password}
-	arg=${arg//\{container\}/$container}
-	argv+=("$arg")
+    case "$arg" in
+    *"{host}"* | *"{port}"*) addressed=1 ;;
+    esac
+    arg=${arg//\{host\}/$host}
+    arg=${arg//\{port\}/$port}
+    arg=${arg//\{password\}/$password}
+    arg=${arg//\{container\}/$container}
+    argv+=("$arg")
 done
 [ "$addressed" -eq 1 ] || argv+=("$host:$port")
 
 if ! command -v "${argv[0]}" >/dev/null 2>&1; then
-	config_hint=${global_config:-the enclave config.json}
-	die "viewer \"${argv[0]}\" not found on PATH.
+    config_hint=${global_config:-the enclave config.json}
+    die "viewer \"${argv[0]}\" not found on PATH.
 Install one (Debian/Ubuntu: apt install tigervnc-viewer, macOS: built in) or configure
 another as vnc_viewer in $config_hint, e.g.
   {\"vnc_viewer\": [\"remmina\", \"-c\", \"vnc://:{password}@{host}:{port}\"]}"

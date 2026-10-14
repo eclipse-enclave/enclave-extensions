@@ -5,14 +5,14 @@
 #
 # SPDX-License-Identifier: MIT
 #
-# Default x-scheme-handler for http/https inside the session image, routing
-# xdg-open flows into vnc-open (whose header explains why this registration
-# must beat the apt-installed chromium.desktop). Wired up via
-# /etc/xdg/mimeapps.list in install.sh.
+# x-scheme-handler for http/https, routing xdg-open flows into
+# enclave-vnc-open (whose header explains why this registration must beat the
+# apt-installed chromium.desktop). Registered per user by
+# feature-entrypoint.d/setup.sh when VNC_OPEN_LINKS=1.
 [Desktop Entry]
 Type=Application
 Name=Enclave VNC display
 NoDisplay=true
 Terminal=false
-Exec=/usr/local/bin/vnc-open %U
+Exec=/usr/local/bin/enclave-vnc-open %U
 MimeType=x-scheme-handler/http;x-scheme-handler/https;

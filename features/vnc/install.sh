@@ -27,32 +27,14 @@ fi
 apt-get clean
 rm -rf /var/lib/apt/lists/*
 
-install -D -m 755 "$dir/bin/vnc-supervisor" /usr/local/bin/vnc-supervisor
-install -D -m 755 "$dir/bin/vnc-open" /usr/local/bin/vnc-open
-install -D -m 755 "$dir/bin/vnc-chromium" /usr/local/bin/vnc-chromium
-install -D -m 644 "$dir/waiting.html" /usr/local/share/enclave/vnc/waiting.html
+install -D -m 755 "$dir/bin/enclave-vnc-supervisor" /usr/local/bin/enclave-vnc-supervisor
+install -D -m 755 "$dir/bin/enclave-vnc-open" /usr/local/bin/enclave-vnc-open
+install -D -m 755 "$dir/bin/enclave-vnc-chromium" /usr/local/bin/enclave-vnc-chromium
+install -D -m 644 "$dir/waiting.html" /usr/local/share/enclave-vnc/waiting.html
 
-# Register vnc-open as the image-wide default handler for http/https URLs
-# (vnc-open's header explains why the scheme-handler registration matters).
-install -D -m 644 "$dir/enclave-vnc-open.desktop" /usr/share/applications/enclave-vnc-open.desktop
-mimeapps=/etc/xdg/mimeapps.list
-mkdir -p /etc/xdg
-if [ ! -f "$mimeapps" ]; then
-    printf '[Default Applications]\n' > "$mimeapps"
-elif ! grep -q '^\[Default Applications\]' "$mimeapps"; then
-    printf '\n[Default Applications]\n' >> "$mimeapps"
-fi
-# Merge rather than truncate, so registrations from other extensions survive.
-# Both edits are scoped to the [Default Applications] section (the range ends at
-# the next section header) so http/https entries in [Added Associations] and
-# friends are left alone: drop any default this section already declares, then
-# insert ours right after its header.
-sed -i '/^\[Default Applications\]/,/^\[/ {
-    /^x-scheme-handler\/http=/d
-    /^x-scheme-handler\/https=/d
-}' "$mimeapps"
-sed -i '/^\[Default Applications\]/a\
-x-scheme-handler/http=enclave-vnc-open.desktop\
-x-scheme-handler/https=enclave-vnc-open.desktop' "$mimeapps"
+# Staged outside /usr/share/applications: its MimeType line alone would make it
+# the image-wide http/https handler. setup.sh registers it per user when
+# VNC_OPEN_LINKS=1.
+install -D -m 644 "$dir/enclave-vnc-open.desktop" /usr/local/share/enclave-vnc/enclave-vnc-open.desktop
 
-echo "vnc: installed chromium, supervisor, vnc-open, waiting page, and URL handler"
+echo "vnc: installed chromium, the enclave-vnc-* scripts, waiting page, and URL handler"
