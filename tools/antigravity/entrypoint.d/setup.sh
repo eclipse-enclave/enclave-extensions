@@ -63,6 +63,25 @@ else
     exit 1
 fi
 
+# agy only talks to the Gemini API directly when modelProvider is "gemini";
+# otherwise it ignores GEMINI_API_KEY and uses the Google sign-in. The variable
+# holds Enclave's per-session placeholder, not the real key, and is unset under
+# --no-api-key. Remove a persisted Gemini provider when no key is available so
+# a later sign-in session does not keep asking for the key.
+# An unparsable settings.json was already rejected by the merge above.
+_tmp="$(mktemp)"
+if [ -n "${GEMINI_API_KEY:-}" ]; then
+    _provider_filter='.modelProvider = "gemini"'
+else
+    _provider_filter='if .modelProvider == "gemini" then del(.modelProvider) else . end'
+fi
+if jq "$_provider_filter" "$_settings" > "$_tmp" 2>/dev/null; then
+    mv "$_tmp" "$_settings"
+else
+    rm -f "$_tmp"
+fi
+unset _provider_filter
+
 # In yolo mode, default the workspace to trusted so agy skips its folder trust prompt.
 # In non-yolo mode, remove the workspace so trust granted in a previous yolo session
 # does not persist into a --no-yolo session in the same project.

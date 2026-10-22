@@ -15,8 +15,11 @@ the wire.
   denied`. The fix is included in the rolling release from 2026-09-21 onward;
   see [the root-owned config directory](#the-root-owned-config-directory) for
   the workaround on older builds.
-- `GEMINI_API_KEY` alone does nothing. Set `"modelProvider": "gemini"` in the
-  settings as well, or the CLI keeps asking for a Google sign-in.
+- `GEMINI_API_KEY` alone does nothing without `"modelProvider": "gemini"` in
+  the settings. `entrypoint.d/setup.sh` sets it at every start when the
+  variable is present, and removes a persisted `gemini` provider when no key
+  is injected. Use `--no-api-key` to switch back to sign-in: unsetting the
+  variable alone does not remove a key persisted in Enclave's host-side store.
 - Sign-in may not survive a restart. Upstream
   [issue #479](https://github.com/google-antigravity/antigravity-cli/issues/479)
   reports the container's file-backed token being written but never read
@@ -137,9 +140,19 @@ this extension declares:
 Conversations live in SQLite databases opened in WAL mode (`conversations/`,
 `conversation_summaries.db`), which is why `qemuStoreCacheMmap` is set.
 
-`passthroughPaths` covers settings, keybindings, MCP servers, skills, and
-workflows. Plugins and the hook configuration are deliberately left out: both
-execute code the session did not build.
+`passthroughPaths` covers settings, keybindings, `AGENTS.md`, `GEMINI.md`,
+agents, rules, MCP servers, skills, and workflows. Plugins
+(`config/plugins.json`) and the hook configuration (`config/hooks.json`) are
+deliberately left out: both execute code the session did not build.
+
+`statePaths` lists what `agy` writes at runtime: conversations and their
+summary database, `brain/`, `implicit/`, `cache/`, `log/`, `builtin/`,
+`updater/`, `jetski_state.pbtxt`, `config/projects/`, `config/.migrated`, and
+`mcp_oauth_tokens.json`. The sign-in token is covered by `authFiles`.
+
+The extension ships the `enclave-help` skill in `skills/enclave-help/`. It
+points the agent at the documentation Enclave bundles in
+`/usr/share/doc/enclave/`.
 
 ## The root-owned config directory
 
@@ -182,7 +195,32 @@ across sign-in and token refreshes.
 `GEMINI_API_KEY` is declared with `serviceAuth`, so the container sees a
 per-session placeholder and the gateway injects the real key as
 `x-goog-api-key` on `generativelanguage.googleapis.com`. The CLI ignores the
-key unless `modelProvider` is `gemini` in the settings.
+key unless `modelProvider` is `gemini` in the settings, which `setup.sh`
+ensures.
+
+### Custom endpoints (LiteLLM)
+
+With `GOOGLE_GEMINI_BASE_URL` pointing at a LiteLLM proxy, passing the
+placeholder key through is rejected (`expected to start with 'sk-'`). The
+extension avoids that with the mechanism suggested in
+[enclave#172](https://github.com/eclipse-enclave/enclave/pull/172): a second
+credential source with `apiKey: false` and
+`serviceAuth.gemini-api-key.hostsFromCredential`:
+
+```yaml
+credentials:
+  sources:
+    gemini-base-url: { env: [GOOGLE_GEMINI_BASE_URL], apiKey: false }
+network:
+  serviceAuth:
+    gemini-api-key: { headerName: x-goog-api-key, hostsFromCredential: gemini-base-url }
+```
+
+The URL selects the host the gateway releases the key to and automatically
+adds it to the session allowlist, so the real key still never enters the
+container. Tested against a LiteLLM proxy. The gateway substitutes the key only
+for HTTPS on port 443. Plain HTTP or another port, such as LiteLLM's default
+`:4000`, will not receive the real key.
 
 ## Egress
 
