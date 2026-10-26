@@ -1,0 +1,42 @@
+#!/bin/bash
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+# enclave-vnc-chromium is the single Chromium invocation shared by
+# enclave-vnc-supervisor and enclave-vnc-open, so the browser behaves the same
+# no matter which path started it. Callers pass URLs only.
+#
+# The container is the sandbox: Chromium's own sandbox needs unprivileged user
+# namespaces, which the default container seccomp profile blocks, so it runs with
+# --no-sandbox and everything it loads egresses via the session gateway.
+# --test-type suppresses the "unsupported command-line flag" infobar that
+# --no-sandbox would otherwise pin above every page. The
+# background-networking/component-update/sync switches keep Chromium's own
+# phone-home traffic (component updater, safe browsing, optimization guide)
+# from hammering gateway-denied domains and filling the network log.
+#
+# There is no `--` before the URLs. Debian's /usr/bin/chromium wrapper consumes
+# it and moves the switches after the URLs, so it would not stop a dash-leading
+# argument from landing as a switch anyway. enclave-vnc-open refuses those
+# instead.
+set -u
+
+exec chromium \
+    --no-sandbox \
+    --test-type \
+    --disable-gpu \
+    --disable-dev-shm-usage \
+    --disable-background-networking \
+    --disable-component-update \
+    --disable-sync \
+    --no-first-run \
+    --no-default-browser-check \
+    --hide-crash-restore-bubble \
+    --password-store=basic \
+    --start-maximized \
+    --user-data-dir=/tmp/enclave-vnc/chromium \
+    "$@"
