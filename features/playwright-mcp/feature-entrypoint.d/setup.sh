@@ -24,6 +24,6 @@ if command -v claude >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     _playwright_json=$(jq -n \
         --arg cmd "$ENCLAVE_AGENT_NODE_DIR/bin/npx" \
         '{type:"stdio",command:$cmd,args:["@playwright/mcp","--headless","--no-sandbox","--browser","chromium"],env:{PLAYWRIGHT_BROWSERS_PATH:"/opt/playwright-browsers"}}')
-    claude mcp add-json -s local playwright "$_playwright_json" 2>/dev/null || true
+    claude mcp add-json -s local playwright "$_playwright_json" >/dev/null 2>&1 || true
     unset _playwright_json
 fi
