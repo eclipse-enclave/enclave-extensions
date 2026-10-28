@@ -3,10 +3,9 @@
 Community tool and feature extensions for [Eclipse Enclave](https://github.com/eclipse-enclave/enclave),
 the Docker sandbox for agentic coding tools.
 
-Enclave has six built-in tools: Claude Code, Codex and Copilot from large
-vendors, and the open-source Theia (with its `theia-next` preview), OpenCode
-and Pi. It also has a handful of built-in features.
-This repo is for everything that lives outside it: experimental
+Enclave has a small set of
+[built-in tools](https://github.com/eclipse-enclave/enclave/blob/main/docs/tools.md#built-in-tools)
+and features. This repo is for everything that lives outside core: experimental
 agents or features, or extensions that are too niche to be built in.
 
 ## Install
