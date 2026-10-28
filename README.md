@@ -71,6 +71,7 @@ for more information.
 | [enclave-dev](features/enclave-dev) | Experimental | Go linters at the versions Enclave's CI pins, for developing Enclave itself. Use with core's `golang-dev` |
 | [deb-dev](features/deb-dev) | Experimental | Debian packaging tools: `debhelper`, `fakeroot`, `lintian` |
 | [rpm-dev](features/rpm-dev) | Experimental | RPM packaging tools: `rpmbuild` |
+| [playwright-mcp](features/playwright-mcp) | Experimental | Playwright MCP server with Chromium, registered with Claude Code. Replaces core's `playwright` feature and `--playwright-mcp` |
 
 Experimental means what it says: each one gets thinner testing than a
 built-in tool, and has rough edges written down in its own README. Read that

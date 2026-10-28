@@ -1,0 +1,18 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+schemaVersion: "1"
+kind: mixin
+name: playwright-mcp
+displayName: Playwright MCP
+description: >-
+  Playwright MCP server and Chromium for browser automation and UI testing,
+  registered with Claude Code
+defaultEnabled: false
+needsRoot: true
+failOnInstallError: true
+priority: 75
