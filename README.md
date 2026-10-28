@@ -68,11 +68,13 @@ for more information.
 | Feature | Status | What it is |
 |---------|--------|------------|
 | [vnc](features/vnc) | Experimental | Contained GUI: a virtual X display with a fullscreened Chromium, served over VNC, plus an `enclave vnc-viewer` host command |
+| [enclave-dev](features/enclave-dev) | Experimental | Go linters at the versions Enclave's CI pins, for developing Enclave itself. Use with core's `golang-dev` |
+| [deb-dev](features/deb-dev) | Experimental | Debian packaging tools: `debhelper`, `fakeroot`, `lintian` |
+| [rpm-dev](features/rpm-dev) | Experimental | RPM packaging tools: `rpmbuild` |
 
-Experimental means what it says: each one pins a fast-moving upstream, gets
-thinner testing than a built-in tool, and has rough edges written down in its
-own README. Read that README before the first session, the security notes
-above all.
+Experimental means what it says: each one gets thinner testing than a
+built-in tool, and has rough edges written down in its own README. Read that
+README before the first session, the security notes above all.
 
 ## Contribute
 
