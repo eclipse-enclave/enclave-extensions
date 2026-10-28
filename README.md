@@ -3,8 +3,9 @@
 Community tool and feature extensions for [Eclipse Enclave](https://github.com/eclipse-enclave/enclave),
 the Docker sandbox for agentic coding tools.
 
-Enclave has built-in extensions for Claude, Codex, OpenCode, Theia, and others,
-as well as a handful of features in its own repository.
+Enclave has six built-in tools: Claude Code, Codex and Copilot from large
+vendors, and the open-source Theia (with its `theia-next` preview), OpenCode
+and Pi. It also has a handful of built-in features.
 This repo is for everything that lives outside it: experimental
 agents or features, or extensions that are too niche to be built in.
 
@@ -64,6 +65,7 @@ for more information.
 | [dsh](tools/dsh) | Experimental | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) with its browser UI |
 | [antigravity](tools/antigravity) | Experimental | Google's [Antigravity CLI](https://antigravity.google/docs/cli/overview) (`agy`), installed from the upstream GitHub release, with its telemetry opted out and its self-updater cut off. Requires the Enclave rolling release from 2026-09-21 or newer |
 | [amp](tools/amp) | Experimental | Sourcegraph's [Amp](https://ampcode.com/) coding agent CLI, installed checksum-verified from upstream storage, with its self-updater blocked and remote-control paths disabled by default |
+| [mistral-vibe](tools/mistral-vibe) | Experimental | Mistral's [Vibe](https://github.com/mistralai/mistral-vibe) coding assistant CLI, installed with Mistral's installer. A built-in tool of core Enclave until it moved here |
 
 | Feature | Status | What it is |
 |---------|--------|------------|
