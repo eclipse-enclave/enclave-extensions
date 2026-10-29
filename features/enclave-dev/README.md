@@ -27,8 +27,8 @@ For `make deb` and `make rpm`, also install [deb-dev](../deb-dev) and
 
 `go install` into `~/.local/bin`, with retries on transient network errors:
 
-- `golangci-lint` (`v2.14.0`)
-- `gosec` (`v2.29.0`)
+- `golangci-lint` (`v2.15.0`)
+- `gosec` (`v2.30.0`)
 - `govulncheck` (`v1.9.0`)
 
 These pins must match `scripts/install-go-linters.sh` in Enclave's
