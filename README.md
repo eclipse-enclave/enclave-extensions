@@ -74,6 +74,7 @@ for more information.
 | [rpm-dev](features/rpm-dev) | Experimental | RPM packaging tools: `rpmbuild` |
 | [playwright-mcp](features/playwright-mcp) | Experimental | Playwright MCP server with Chromium, registered with Claude Code. Replaces core's `playwright` feature and `--playwright-mcp` |
 | [shell-extras](features/shell-extras) | Experimental | zsh with oh-my-zsh, and bash-completion |
+| [debug-tools](features/debug-tools) | Experimental | Debugging and tracing tools: `gdb`, `strace`, `ltrace`, `valgrind`, `tcpdump`, `sysstat` |
 
 Experimental means what it says: each one gets thinner testing than a
 built-in tool, and has rough edges written down in its own README. Read that
