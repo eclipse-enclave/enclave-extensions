@@ -62,11 +62,26 @@ Two ways in, and they are independent:
   skipped without a D-Bus session bus), which lives in the shared auth store,
   so one sign-in covers every project; `--auth-name` selects separate
   identities.
-- **Gemini API key.** Export `GEMINI_API_KEY` *and* set `"modelProvider":
-  "gemini"` in the CLI settings; the key alone is ignored. The gateway injects
+- **Gemini API key.** Export `GEMINI_API_KEY`. `agy` ignores the key unless
+  `"modelProvider": "gemini"` is set in its settings, so `entrypoint.d/setup.sh`
+  sets that at every start whenever the variable is present. The gateway injects
   the key as `x-goog-api-key` on requests to
   `generativelanguage.googleapis.com`, so it is never present in the container
-  environment in the clear.
+  environment in the clear. Pass `--no-api-key` to go back to Google sign-in;
+  setup removes a persisted `modelProvider: gemini` when no key is injected.
+  Unsetting the host environment variable alone is not enough if Enclave has
+  persisted the key in its host-side environment store.
+
+**Custom endpoint.** Set `GOOGLE_GEMINI_BASE_URL` next to `GEMINI_API_KEY` to
+use a Gemini-compatible proxy such as LiteLLM. The gateway then releases the
+key to the proxy's host instead of `generativelanguage.googleapis.com`, still
+as `x-goog-api-key`, and automatically adds that host to the session allowlist.
+The proxy must use HTTPS on port 443 for the gateway to substitute the key;
+plaintext HTTP or a different port, such as LiteLLM's default `:4000`, will
+not receive the real key.
+
+Not wired up: Application Default Credentials (`AGY_ADC_AUTH`) and Workforce
+Identity Federation.
 
 `/logout` clears the stored session.
 
@@ -112,10 +127,14 @@ as unproven.
 the sign-in, and the skills and MCP configuration the CLI shares with the
 Antigravity IDE all survive restarts. Managed skills compose into
 `~/.gemini/config/skills`, the scope every Antigravity product reads, so a
-feature extension that ships skills reaches this tool too. Host config
-passthrough covers settings, keybindings, MCP servers, skills, and workflows;
+feature extension that ships skills reaches this tool too; this extension
+itself ships the `enclave-help` skill, which answers questions from Enclave's
+bundled documentation. Host config passthrough covers settings, keybindings,
+`AGENTS.md`, `GEMINI.md`, agents, rules, MCP servers, skills, and workflows;
 plugins and the hook configuration are left out, since both execute code the
-session did not build.
+session did not build. Runtime data (conversations, caches, logs, project
+mappings, MCP OAuth tokens) is declared in `statePaths` and never passed
+through.
 
 `gateway-allowlist.conf` allows `antigravity.google` (sign-in landing page,
 OAuth client metadata, changelog) and the Google fragment (sign-in, token

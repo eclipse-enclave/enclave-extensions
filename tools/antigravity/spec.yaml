@@ -27,11 +27,37 @@ sandbox:
   # Conversations live in SQLite databases opened in WAL mode
   # (conversations/, conversation_summaries.db).
   qemuStoreCacheMmap: true
+  statePaths:
+    # Runtime data written by agy. The OAuth token is covered separately by
+    # providers[].authFiles.
+    - antigravity-cli/conversations/
+    - antigravity-cli/conversation_summaries.db*
+    - antigravity-cli/brain/
+    - antigravity-cli/implicit/
+    - antigravity-cli/cache/
+    - antigravity-cli/log/
+    - antigravity-cli/builtin/
+    - antigravity-cli/updater/
+    - antigravity-cli/jetski_state.pbtxt
+    # Workspace-to-project mappings and the migration marker.
+    - config/projects/
+    - config/.migrated
+    # MCP OAuth tokens are credentials, not configuration.
+    - mcp_oauth_tokens.json
+  # Plugins (config/plugins.json) and the hook configuration (config/hooks.json)
+  # are deliberately left out: both execute code the session did not build.
   passthroughPaths:
     - antigravity-cli/keybindings.json
     - antigravity-cli/settings.json
+    - config/AGENTS.md
+    - config/GEMINI.md
+    - config/agents.json
+    - config/agents/
     - config/global_workflows/
     - config/mcp_config.json
+    - config/rules.json
+    - config/rules/
+    - config/skills.json
     - config/skills/
     - config/workflows/
 
@@ -54,11 +80,19 @@ network:
   serviceDomains:
     generativelanguage.googleapis.com: gemini-api-key
   serviceAuth:
-    gemini-api-key: { headerName: x-goog-api-key }
+    # With GOOGLE_GEMINI_BASE_URL set (a proxy such as LiteLLM), the key is
+    # released to that host instead of generativelanguage.googleapis.com.
+    gemini-api-key:
+      headerName: x-goog-api-key
+      hostsFromCredential: gemini-base-url
 
 credentials:
   sources:
     gemini-api-key: { env: [GEMINI_API_KEY] }
+    # Not a secret: only selects the host the key is released to. apiKey: false
+    # keeps it out of the API-key handling, so the URL stays readable in the
+    # container, where agy needs it.
+    gemini-base-url: { env: [GOOGLE_GEMINI_BASE_URL], apiKey: false }
 
 providers:
   # "gemini" matches agy's modelProvider value; provider names are tool-native.
