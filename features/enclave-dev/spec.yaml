@@ -1,0 +1,23 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+schemaVersion: "1"
+kind: mixin
+name: enclave-dev
+displayName: Enclave Development
+description: >-
+  Go linters at the versions Enclave's CI pins (golangci-lint, gosec,
+  govulncheck), for developing Enclave itself. Needs Go from golang-dev.
+defaultEnabled: false
+# install.sh needs go, which core's golang-dev feature (priority 45) installs
+# in an earlier stage.
+priority: 50
+failOnInstallError: true
+network:
+  allowedDomains:
+    # govulncheck downloads the Go vulnerability database from here.
+    - vuln.go.dev

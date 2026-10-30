@@ -3,9 +3,9 @@
 Community tool and feature extensions for [Eclipse Enclave](https://github.com/eclipse-enclave/enclave),
 the Docker sandbox for agentic coding tools.
 
-Enclave has built-in extensions for Claude, Codex, OpenCode, Theia, and others,
-as well as a handful of features in its own repository.
-This repo is for everything that lives outside it: experimental
+Enclave has a small set of
+[built-in tools](https://github.com/eclipse-enclave/enclave/blob/main/docs/tools.md#built-in-tools)
+and features. This repo is for everything that lives outside core: experimental
 agents or features, or extensions that are too niche to be built in.
 
 ## Install
@@ -64,15 +64,21 @@ for more information.
 | [dsh](tools/dsh) | Experimental | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) with its browser UI |
 | [antigravity](tools/antigravity) | Experimental | Google's [Antigravity CLI](https://antigravity.google/docs/cli/overview) (`agy`), installed from the upstream GitHub release, with its telemetry opted out and its self-updater cut off. Requires the Enclave rolling release from 2026-09-21 or newer |
 | [amp](tools/amp) | Experimental | Sourcegraph's [Amp](https://ampcode.com/) coding agent CLI, installed checksum-verified from upstream storage, with its self-updater blocked and remote-control paths disabled by default |
+| [mistral-vibe](tools/mistral-vibe) | Experimental | Mistral's [Vibe](https://github.com/mistralai/mistral-vibe) coding assistant CLI, installed with Mistral's installer. A built-in tool of core Enclave until it moved here |
 
 | Feature | Status | What it is |
 |---------|--------|------------|
 | [vnc](features/vnc) | Experimental | Contained GUI: a virtual X display with a fullscreened Chromium, served over VNC, plus an `enclave vnc-viewer` host command |
+| [enclave-dev](features/enclave-dev) | Experimental | Go linters at the versions Enclave's CI pins, for developing Enclave itself. Use with core's `golang-dev` |
+| [deb-dev](features/deb-dev) | Experimental | Debian packaging tools: `debhelper`, `fakeroot`, `lintian` |
+| [rpm-dev](features/rpm-dev) | Experimental | RPM packaging tools: `rpmbuild` |
+| [playwright-mcp](features/playwright-mcp) | Experimental | Playwright MCP server with Chromium, registered with Claude Code. Replaces core's `playwright` feature and `--playwright-mcp` |
+| [shell-extras](features/shell-extras) | Experimental | zsh with oh-my-zsh, and bash-completion |
+| [debug-tools](features/debug-tools) | Experimental | Debugging and tracing tools: `gdb`, `strace`, `ltrace`, `valgrind`, `tcpdump`, `sysstat` |
 
-Experimental means what it says: each one pins a fast-moving upstream, gets
-thinner testing than a built-in tool, and has rough edges written down in its
-own README. Read that README before the first session, the security notes
-above all.
+Experimental means what it says: each one gets thinner testing than a
+built-in tool, and has rough edges written down in its own README. Read that
+README before the first session, the security notes above all.
 
 ## Contribute
 
