@@ -34,3 +34,8 @@ For `make deb` and `make rpm`, also install [deb-dev](../deb-dev) and
 These pins must match `scripts/install-go-linters.sh` in Enclave's
 repository, which CI installs from. Bump both together. Nothing checks that
 the two copies match.
+
+## Network
+
+The feature allows `vuln.go.dev`, where `govulncheck` downloads the Go
+vulnerability database, so `govulncheck ./...` works in restricted sessions.

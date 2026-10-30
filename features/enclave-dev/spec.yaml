@@ -17,3 +17,7 @@ defaultEnabled: false
 # in an earlier stage.
 priority: 50
 failOnInstallError: true
+network:
+  allowedDomains:
+    # govulncheck downloads the Go vulnerability database from here.
+    - vuln.go.dev
