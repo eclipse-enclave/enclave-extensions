@@ -1,0 +1,37 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+schemaVersion: "1"
+kind: mixin
+name: gws-cli
+displayName: Google Workspace CLI
+description: "Experimental: Google Workspace CLI (gws) with its agent skills"
+defaultEnabled: false
+needsRoot: true
+# Late in the order: Enclave bakes the whole feature dir into the image, so an
+# edit to skills/ or README.md would otherwise rebuild every feature after it.
+priority: 85
+failOnInstallError: true
+
+# Declaring an auth file makes Enclave create the shared feature auth store;
+# the feature entrypoint then links all of ~/.config/gws into it, because gws
+# replaces its files by rename and per-file links would not survive that. Only
+# the OAuth client is declared: Enclave touches an empty placeholder for each
+# missing auth file in the shared store, and gws rejects empty credentials.
+configDir: .config/gws
+authFiles: [client_secret.json]
+
+environment:
+  variables:
+    # No OS keyring in the container; keep the key file next to the credentials.
+    GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND: file
+
+network:
+  allowedDomains:
+    - "*.googleapis.com"
+    # Token refresh for logins (yup-oauth2's authorized-user flow).
+    - accounts.google.com
