@@ -1,0 +1,113 @@
+#!/bin/bash
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+# Run `gws auth login` inside an Enclave session. gws waits for the OAuth
+# redirect on a random localhost port inside the container, which the host
+# browser cannot reach, so this relays the redirect address the user pastes.
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: gws-auth-login [gws auth login options]
+
+Runs `gws auth login` and relays the OAuth redirect into the container:
+open the printed URL in your browser, approve, then paste the
+http://localhost:<port>/?... address the browser fails to load.
+
+Options go to `gws auth login`: --readonly, --full, --scopes <scopes>,
+-s/--services <services>. Without them gws requests its default scopes
+(Drive, Gmail, Calendar, Docs, Sheets, Slides, Tasks).
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+esac
+
+log="$(mktemp)"
+# No terminal on stdin: gws skips its scope picker and does not compete with
+# the prompt below for input.
+gws auth login "$@" </dev/null >"$log" 2>&1 &
+gws_pid=$!
+# Background jobs ignore SIGINT, so stop gws explicitly on Ctrl-C or error.
+trap 'kill "$gws_pid" 2>/dev/null || true; rm -f "$log"' EXIT
+
+# Waits for gws and exits with its status, showing its output without the
+# consent URL.
+finish() {
+    local status=0
+    wait "$gws_pid" || status=$?
+    grep -v -e 'accounts\.google\.com' -e '^Open this URL' -e '^[[:space:]]*$' "$log" || true
+    exit "$status"
+}
+
+find_auth_url() {
+    grep -o -m 1 'https://accounts\.google\.com/[^[:space:]]*' "$log" || true
+}
+
+auth_url=""
+for _ in $(seq 300); do
+    auth_url="$(find_auth_url)"
+    [ -n "$auth_url" ] && break
+    kill -0 "$gws_pid" 2>/dev/null || break
+    sleep 0.2
+done
+[ -n "$auth_url" ] || auth_url="$(find_auth_url)"
+if [ -z "$auth_url" ]; then
+    if kill "$gws_pid" 2>/dev/null; then
+        cat "$log" >&2
+        echo "gws-auth-login: gws printed no sign-in URL within 60s" >&2
+        exit 1
+    fi
+    finish
+fi
+
+cat <<EOF
+
+1. Open this URL in your browser and sign in:
+
+   $auth_url
+
+2. After you approve, the browser is sent to http://localhost:<port>/?...
+   and shows a connection error. That is expected: copy the full address
+   from the address bar and paste it here.
+
+EOF
+
+callback=""
+while [ -z "$callback" ]; do
+    printf 'Redirect URL: '
+    if ! IFS= read -r callback; then
+        echo >&2
+        echo "gws-auth-login: no redirect URL given" >&2
+        exit 1
+    fi
+    callback="$(printf '%s' "$callback" | tr -d '[:space:]')"
+done
+
+case "$callback" in
+    http://localhost:[0-9]*|http://127.0.0.1:[0-9]*|http://\[::1\]:[0-9]*) ;;
+    *)
+        echo "gws-auth-login: expected an http://localhost:<port>/... address, got: $callback" >&2
+        exit 1
+        ;;
+esac
+case "$callback" in
+    *code=*) ;;
+    *)
+        echo "gws-auth-login: the address has no authorization code; did the sign-in fail?" >&2
+        exit 1
+        ;;
+esac
+
+if ! curl -fsS --noproxy '*' --max-time 30 -o /dev/null "$callback"; then
+    echo "gws-auth-login: could not deliver the redirect to gws; is the port the one gws printed?" >&2
+    exit 1
+fi
+
+finish
