@@ -1,0 +1,58 @@
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+# Opaque backgrounds: the VNC desktop does not run a compositor.
+rounded = 0
+border_width = 0
+background_color = #242424 100
+
+rounded = 3
+border_width = 0
+background_color = #3b3b3b 100
+
+rounded = 3
+border_width = 0
+background_color = #315a80 100
+
+# Window buttons only: no launcher, tray, clock, or desktop environment.
+panel_items = T
+panel_position = top center horizontal
+panel_size = 100% 32
+panel_margin = 0 0
+panel_padding = 4 2 4
+panel_background_id = 1
+panel_layer = top
+panel_dock = 0
+strut_policy = follow_size
+autohide = 0
+disable_transparency = 1
+
+taskbar_mode = single_desktop
+taskbar_padding = 0 0 4
+taskbar_name = 0
+taskbar_hide_inactive_tasks = 0
+taskbar_sort_order = none
+task_align = left
+
+task_icon = 1
+task_text = 1
+task_centered = 0
+task_tooltip = 1
+task_maximum_size = 260 28
+task_padding = 8 3 4
+task_font = DejaVu Sans 10
+task_font_color = #dddddd 100
+task_active_font_color = #ffffff 100
+task_background_id = 2
+task_active_background_id = 3
+
+# Activate without minimizing the current window on a second click.
+mouse_left = toggle
+mouse_middle = none
+mouse_right = none
+mouse_scroll_up = prev_task
+mouse_scroll_down = next_task

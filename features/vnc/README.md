@@ -53,13 +53,14 @@ vncviewer 127.0.0.1:<published-host-port>
 ## What runs in the container
 
 `commands.startup` launches `enclave-vnc-supervisor` (installed to
-`/usr/local/bin`) as the sandbox user. It keeps three components alive with
-per-component restart loops, logging to `/tmp/enclave-vnc/log/`:
+`/usr/local/bin`) as the sandbox user. It keeps the following components alive
+with per-component restart loops, logging to `/tmp/enclave-vnc/log/`:
 
 1. **Xvnc**: virtual X display `:99`, RFB server on the published container
    port `5900`, VncAuth required. It listens on all container interfaces
    (no `-localhost`) so the host's loopback-published port reaches it.
 2. **matchbox-window-manager**: fullscreens every window (kiosk-style).
+   Window switching is provided by the optional taskbar below.
 3. **Chromium**: headful on the virtual display. It starts on a local
    waiting page and stays there until a page is opened. When `$VNC_URL` is set,
    a one-shot watcher probes it and forwards it into the running browser once
@@ -68,10 +69,15 @@ per-component restart loops, logging to `/tmp/enclave-vnc/log/`:
    starts later than the stack. Sessions can also drive the browser on demand
    via `enclave-vnc-open`, which is how a consuming feature opens a URL it only
    knows at runtime.
+4. **tint2** (only with `VNC_TASKBAR=1`): a narrow top taskbar with a button
+   for each application window. Click a button to switch between Chromium,
+   Electron, and other GUI applications.
+   It has no launcher, system tray, or clock, and does not need a full desktop.
 
 A component that keeps crashing restarts after a delay that doubles up to a
 minute, and its log rotates to `<name>.log.1` once it passes 1 MiB. Stopping
-the supervisor with TERM or HUP stops all three components.
+the supervisor with TERM or HUP stops all components, including the optional
+taskbar (`taskbar.log`).
 
 Both the supervisor and `enclave-vnc-open` launch Chromium through the shared
 `/usr/local/bin/enclave-vnc-chromium` wrapper, so the browser behaves the same
@@ -181,10 +187,22 @@ Environment variables read by the feature (set via a consuming feature's
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `VNC_OPEN_LINKS` | unset | `1` routes "open in browser" flows to the display (see [Opening links on the display](#opening-links-on-the-display)). |
+| `VNC_TASKBAR` | unset | `1` starts a standalone tint2 window-switching taskbar. Read when the VNC supervisor starts. |
 | `VNC_URL` | unset | Optional URL auto-forwarded into the browser once its port is reachable. Left unset, the display stays on the waiting page and sessions open pages on demand via `enclave-vnc-open`. |
 | `VNC_URL_WAIT_SECONDS` | `300` | How long that forward waits for the URL's port before giving up and logging. |
 | `VNC_GEOMETRY` | `1600x1000` | Initial display size (a resize-capable client can change it) |
 | `VNC_DISPLAY` | `:99` | X display number |
+
+For example, enable the taskbar for a new session:
+
+```bash
+VNC_TASKBAR=1 enclave --features +vnc --pass-env +VNC_TASKBAR …
+```
+
+`--pass-env +VNC_TASKBAR` adds the host variable to the forwarded environment;
+setting it only on the host without forwarding it is not enough. Changing
+this variable in a running shell does not reconfigure the existing stack;
+restart the VNC stack or recreate the session with it set.
 
 The RFB port is not configurable: it must match the `ports:` declaration in
 `spec.yaml` (container port `5900`), so the supervisor hardcodes it.

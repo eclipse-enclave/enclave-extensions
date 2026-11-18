@@ -24,6 +24,7 @@ aptPackages:
   # tigervncpasswd, only a Recommends of the server, which apt skips here.
   - tigervnc-tools
   - matchbox-window-manager
+  - tint2
   - xdg-utils
   - fonts-liberation
   - fonts-dejavu-core
