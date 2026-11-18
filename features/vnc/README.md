@@ -199,10 +199,7 @@ For example, enable the taskbar for a new session:
 VNC_TASKBAR=1 enclave --features +vnc --pass-env +VNC_TASKBAR …
 ```
 
-`--pass-env +VNC_TASKBAR` adds the host variable to the forwarded environment;
-setting it only on the host without forwarding it is not enough. Changing
-this variable in a running shell does not reconfigure the existing stack;
-restart the VNC stack or recreate the session with it set.
+To change `VNC_TASKBAR`, recreate the session with the desired value.
 
 The RFB port is not configurable: it must match the `ports:` declaration in
 `spec.yaml` (container port `5900`), so the supervisor hardcodes it.

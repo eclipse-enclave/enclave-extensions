@@ -32,7 +32,7 @@ commands:
   startup:
     - command: [/usr/local/bin/enclave-vnc-supervisor]
       background: true
-      description: VNC stack (Xvnc, window manager, Chromium)
+      description: VNC stack (Xvnc, window manager, Chromium, optional taskbar)
 ports:
   - container: 5900
     hostAllocation: auto
