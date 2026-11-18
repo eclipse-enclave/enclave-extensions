@@ -24,6 +24,7 @@ aptPackages:
   # tigervncpasswd, only a Recommends of the server, which apt skips here.
   - tigervnc-tools
   - matchbox-window-manager
+  - tint2
   - xdg-utils
   - fonts-liberation
   - fonts-dejavu-core
@@ -31,7 +32,7 @@ commands:
   startup:
     - command: [/usr/local/bin/enclave-vnc-supervisor]
       background: true
-      description: VNC stack (Xvnc, window manager, Chromium)
+      description: VNC stack (Xvnc, window manager, Chromium, optional taskbar)
 ports:
   - container: 5900
     hostAllocation: auto
