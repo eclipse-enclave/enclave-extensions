@@ -11,6 +11,7 @@
 #   Xvnc (virtual X display + VNC server, RFB served on all container
 #     interfaces so the published host port reaches it)
 #     -> matchbox-window-manager (fullscreens every window)
+#     -> tint2 window-switching taskbar (optional, VNC_TASKBAR=1)
 #     -> Chromium on a waiting page, forwarded to $VNC_URL once it is set and
 #        reachable (all browsing stays on the container's gateway-restricted
 #        network)
@@ -190,6 +191,11 @@ fi
 export DISPLAY="$DISPLAY_NUM"
 
 run_forever wm matchbox-window-manager -use_titlebar no
+
+# Optional taskbar for switching between application windows.
+if [ "${VNC_TASKBAR:-}" = 1 ]; then
+    run_forever taskbar tint2 -c /usr/local/share/enclave-vnc/tint2rc
+fi
 
 # Chromium starts on a static waiting page, never on $VNC_URL directly: a
 # server the session starts later would otherwise park the display on a

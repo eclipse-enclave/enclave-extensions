@@ -31,6 +31,7 @@ install -D -m 755 "$dir/bin/enclave-vnc-supervisor" /usr/local/bin/enclave-vnc-s
 install -D -m 755 "$dir/bin/enclave-vnc-open" /usr/local/bin/enclave-vnc-open
 install -D -m 755 "$dir/bin/enclave-vnc-chromium" /usr/local/bin/enclave-vnc-chromium
 install -D -m 644 "$dir/waiting.html" /usr/local/share/enclave-vnc/waiting.html
+install -D -m 644 "$dir/tint2rc" /usr/local/share/enclave-vnc/tint2rc
 
 # Staged outside /usr/share/applications: its MimeType line alone would make it
 # the image-wide http/https handler. setup.sh registers it per user when
