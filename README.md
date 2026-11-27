@@ -75,6 +75,7 @@ for more information.
 | [playwright-mcp](features/playwright-mcp) | Experimental | Playwright MCP server with Chromium, registered with Claude Code. Replaces core's `playwright` feature and `--playwright-mcp` |
 | [shell-extras](features/shell-extras) | Experimental | zsh with oh-my-zsh, and bash-completion |
 | [debug-tools](features/debug-tools) | Experimental | Debugging and tracing tools: `gdb`, `strace`, `ltrace`, `valgrind`, `tcpdump`, `sysstat` |
+| [gws-cli](features/gws-cli) | Experimental | [Google Workspace CLI](https://github.com/googleworkspace/cli) (`gws`) with its agent skills, opt-in. Logins persist across sessions, and `enclave gws-cli-import` reuses the host login |
 
 Experimental means what it says: each one gets thinner testing than a
 built-in tool, and has rough edges written down in its own README. Read that

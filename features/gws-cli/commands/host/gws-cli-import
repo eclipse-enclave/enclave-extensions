@@ -1,0 +1,124 @@
+#!/bin/bash
+# Copyright (C) 2026 EclipseSource GmbH and others.
+#
+# This program and the accompanying materials are made available under the
+# terms of the MIT License, which is available in the project root.
+#
+# SPDX-License-Identifier: MIT
+
+# Copy the host's gws OAuth client and login into Enclave's shared gws-cli
+# auth store, which every session with the gws-cli feature uses.
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: enclave gws-cli-import [--client-only] [--force]
+
+Copies the host's gws setup into the auth store that every Enclave session
+with the gws-cli feature uses:
+
+  - the OAuth client, client_secret.json from the host gws config dir
+  - the host login, read with `gws auth export --unmasked` (needs gws on PATH)
+
+Run it again after `gws auth login` on the host to pick up the new login.
+
+Options:
+  --client-only  Copy only the OAuth client; log in inside a session with
+                 gws-auth-login
+  --force        Replace a login the store already has
+  -h, --help     Show this help
+EOF
+}
+
+client_only=0
+force=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --client-only) client_only=1 ;;
+        --force) force=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "gws-cli-import: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+# Mirrors Enclave's host roots: XDG state on Linux, Application Support on macOS.
+if [ "$(uname -s)" = "Darwin" ]; then
+    state_root="$HOME/Library/Application Support/org.eclipse.enclave/state"
+else
+    case "${XDG_STATE_HOME:-}" in
+        /*) state_root="$XDG_STATE_HOME/enclave" ;;
+        *) state_root="$HOME/.local/state/enclave" ;;
+    esac
+fi
+store="$state_root/features/gws-cli/auth"
+
+# Mirrors gws: GOOGLE_WORKSPACE_CLI_CONFIG_DIR, else ~/.config/gws, else the
+# legacy macOS config dir.
+host_config="${GOOGLE_WORKSPACE_CLI_CONFIG_DIR:-$HOME/.config/gws}"
+if [ -z "${GOOGLE_WORKSPACE_CLI_CONFIG_DIR:-}" ] && [ ! -d "$host_config" ] &&
+    [ -d "$HOME/Library/Application Support/gws" ]; then
+    host_config="$HOME/Library/Application Support/gws"
+fi
+
+if [ "$client_only" = 0 ]; then
+    if ! command -v gws >/dev/null 2>&1; then
+        echo "gws is not on PATH, so the host login cannot be read." >&2
+        echo "Install it (npm install -g @googleworkspace/cli) or rerun with --client-only." >&2
+        exit 1
+    fi
+    if [ "$force" = 0 ] && { [ -s "$store/credentials.enc" ] || [ -s "$store/credentials.json" ]; }; then
+        echo "The store already has a gws login; rerun with --force to replace it." >&2
+        exit 1
+    fi
+fi
+
+umask 077
+mkdir -p "$store"
+
+# Writes stdin to the store atomically, so a running session never reads a
+# half-written file.
+write_store_file() {
+    local tmp
+    tmp="$(mktemp "$store/.import.XXXXXX")"
+    if ! cat >"$tmp"; then
+        rm -f "$tmp"
+        return 1
+    fi
+    mv -f "$tmp" "$store/$1"
+}
+
+if [ -s "$host_config/client_secret.json" ]; then
+    write_store_file client_secret.json <"$host_config/client_secret.json"
+    echo "Imported OAuth client from $host_config/client_secret.json"
+elif [ "$client_only" = 1 ]; then
+    echo "No OAuth client at $host_config/client_secret.json to import." >&2
+    exit 1
+else
+    echo "No OAuth client at $host_config/client_secret.json; importing only the login." >&2
+fi
+
+if [ "$client_only" = 1 ]; then
+    echo "Log in inside a session with: gws-auth-login"
+    exit 0
+fi
+
+# The host key may live in the OS keyring, which the container cannot reach,
+# so store the decrypted login. gws reads it as credentials.json; inside the
+# container the encryption key would sit next to credentials.enc anyway.
+export_status=0
+credentials="$(gws auth export --unmasked 2>/dev/null)" || export_status=$?
+case "$credentials" in
+    *'"refresh_token"'*) ;;
+    *)
+        echo "No usable host gws login (gws auth export exited $export_status)." >&2
+        echo "Run gws auth login on the host first, or log in inside a session with gws-auth-login." >&2
+        exit 1
+        ;;
+esac
+
+printf '%s\n' "$credentials" | write_store_file credentials.json
+# credentials.enc would shadow credentials.json, and the caches belong to the
+# login being replaced.
+rm -f "$store/credentials.enc" "$store/token_cache.json" "$store/sa_token_cache.json" "$store/account_timezone"
+echo "Imported host gws login into $store"
